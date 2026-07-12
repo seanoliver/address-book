@@ -699,7 +699,7 @@ revoke all on function private.submit_to_book(text, jsonb) from public, anon, au
 pnpm supabase db reset && pnpm supabase test db
 ```
 
-Expected: both test files pass (12 + 11).
+Expected: both test files pass (23 + 11).
 
 **Step 5: Commit**
 
