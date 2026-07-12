@@ -47,6 +47,10 @@ const eslintConfig = defineConfig([
       // contacts/submissions through withRls and use dbAdmin ONLY for the
       // contact_events row (source 'submission') after the RLS write.
       "src/app/dashboard/review/actions.ts",
+      // ... and the concurrency guardrail test, which seeds fixtures and
+      // asserts post-conditions as admin (the replayed approve transactions
+      // themselves run through withRls).
+      "src/app/dashboard/review/approve-race.test.ts",
     ],
     rules: { "no-restricted-imports": "off" },
   },

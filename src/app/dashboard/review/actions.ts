@@ -140,9 +140,41 @@ async function recordSubmissionEvent(
 }
 
 /**
+ * Atomic concurrency gate for the approve paths: flip pending → approved and
+ * report whether WE won the flip. Two concurrent approvals both read the
+ * same pending row, but under READ COMMITTED the second UPDATE blocks on the
+ * row lock and re-evaluates `status = 'pending'` after the first commits —
+ * exactly one caller ever gets a row back. Contract: run in the SAME
+ * transaction as the contact write, AFTER all read-only checks and BEFORE
+ * any write — a losing racer must return having written nothing, and a
+ * failed contact write (e.g. duplicate email) must throw so the rollback
+ * restores the submission to pending.
+ */
+async function winApprovalFlip(
+  tx: RlsTx,
+  submissionId: string,
+  bookId: string,
+): Promise<boolean> {
+  const rows = await tx
+    .update(submissions)
+    .set({ status: "approved" })
+    .where(
+      and(
+        eq(submissions.id, submissionId),
+        eq(submissions.bookId, bookId),
+        eq(submissions.status, "pending"),
+      ),
+    )
+    .returning({ id: submissions.id });
+  return rows.length === 1;
+}
+
+/**
  * The caller's book + the PENDING submission, both RLS-scoped (the explicit
  * predicates mirror what RLS enforces). undefined ⇒ no book, unknown id,
  * another user's submission, or already reviewed — all indistinguishable.
+ * Read-only — the AUTHORITATIVE pending check is winApprovalFlip (this
+ * select alone would be check-then-act under concurrency).
  */
 async function loadPendingSubmission(tx: RlsTx, ownerId: string, id: string) {
   const [book] = await tx
@@ -196,14 +228,18 @@ export async function approveNew(
       if (!parsed.success) return { kind: "invalid" };
       const gated = dropDisabledFields(parsed.data, book.enabledFields);
 
+      // Concurrency gate: atomically flip pending → approved FIRST; a
+      // concurrent approval of the same submission loses here and returns
+      // without writing anything. If the insert below throws, the whole tx
+      // (flip included) rolls back and the submission stays pending.
+      if (!(await winApprovalFlip(tx, submission.id, book.id))) {
+        return { kind: "not_found" };
+      }
+
       const [row] = await tx
         .insert(contacts)
         .values({ bookId: book.id, ...toRow(gated) })
         .returning({ id: contacts.id });
-      await tx
-        .update(submissions)
-        .set({ status: "approved" })
-        .where(eq(submissions.id, submission.id));
       return {
         kind: "ok",
         contactId: row.id,
@@ -287,6 +323,14 @@ export async function approveMerge(
       const after = { ...before, ...definedFields(inputToSnapshot(gated)) };
       const diff = changedFields(before, after);
 
+      // Concurrency gate: atomically flip pending → approved after all the
+      // read-only checks and BEFORE the contact write; a concurrent approval
+      // loses here and returns without writing. A failed update below rolls
+      // the flip back to pending.
+      if (!(await winApprovalFlip(tx, submission.id, book.id))) {
+        return { kind: "not_found" };
+      }
+
       if (diff) {
         const set: Partial<
           Record<(typeof FIELD_TO_COLUMN)[TokenUpdateField], string>
@@ -305,10 +349,6 @@ export async function approveMerge(
           );
       }
 
-      await tx
-        .update(submissions)
-        .set({ status: "approved" })
-        .where(eq(submissions.id, submission.id));
       return { kind: "ok", contactId: existing.id, diff };
     });
   } catch (err) {
