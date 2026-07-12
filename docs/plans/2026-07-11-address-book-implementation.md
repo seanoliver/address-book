@@ -1361,15 +1361,15 @@ export function generateToken(): { token: string; hash: Buffer } {
 export const TOKEN_TTL_DAYS = 30;
 ```
 
-**Step 3b: Email layer** (`src/lib/email/resend.ts`): thin wrapper — `sendAddressRequests(batch: { to, subject, html }[])` using `resend.batch.send` in chunks of 100; when `EMAIL_DRY_RUN=1`, log and return fake ids (`dry_<n>`). `templates.ts`: `addressRequestEmail({ ownerName, updateUrl })` → plain, friendly HTML + text: "Sean is updating their address book — confirm or update your address here." **No address data in the email body.** Subject: `"${ownerName} would like your current mailing address"`.
+**Step 3b: Email layer** (`src/lib/email/resend.ts`): thin wrapper — `sendAddressRequests(items: { to, subject, html, text }[])` using `resend.batch.send` in chunks of 100 (results map positionally; a failed chunk yields `id: null` per item); when `EMAIL_DRY_RUN=1`, log the link + recipient and return fake ids (`dry_<n>_<rand>` — random suffix because `email_sends.resend_id` is UNIQUE and dev restarts reset counters). `templates.ts`: `addressRequestEmail({ ownerName, bookTitle, updateUrl })` → plain, friendly HTML + text (owner name/book title HTML-escaped — they're user-controlled): "Owner is updating their address book — confirm or update your address here," link expires in 30 days. **No address data in the email body.** Subject: `"${ownerName} would like your current mailing address"`.
 
 **Step 4: `requestAddresses` server action** (`src/app/dashboard/actions.ts`):
 
 1. `requireUser`; input `{ contactIds: string[] } | { all: true }` (Zod).
-2. `withRls`: select the target contacts **that have an email** — this both authorizes (RLS) and filters. Take the returned ids as the authorized set.
-3. For each: `generateToken()`; insert `{ contactId, tokenHash, expiresAt: now + 30d }` into `update_tokens` via `dbAdmin` (documented admin-path exception; contact ids came from the RLS query in step 2).
-4. Build `updateUrl = ${APP_URL}/u/${token}`; send via email layer; insert `email_sends` rows (`resendId` from response) via `dbAdmin`.
-5. Return `{ sent, skippedNoEmail }` for a toast/banner.
+2. `withRls`: select the target contacts (plus book title and owner profile `full_name` for the template — owner display name falls back to the book title). The RLS query IS the authorization; ids belonging to another user silently drop out. Contacts without an email are counted as `skippedNoEmail`.
+3. For each authorized contact with an email: `generateToken()`. In one `dbAdmin` transaction (documented admin-path exception; contact ids came from the RLS query in step 2): **delete the contact's previous unused tokens** (`used_at is null`), then insert `{ contactId, tokenHash, expiresAt: now + 30d }`. This is the single-active-token semantics — re-running the request rotates the link; old unsent/unused links die immediately rather than living out their expiry.
+4. Build `updateUrl = ${APP_URL}/u/${token}`; send via email layer; insert `email_sends` rows (`resendId` from response) via `dbAdmin` for successful sends only. Tokens whose email failed to send are deleted by exact hash (no orphan live tokens for emails that never went out; a contact whose send failed ends with zero live tokens until the next request). The raw token is never persisted or logged — only its hash (sole exception: the dev-only `EMAIL_DRY_RUN=1` log prints the URL).
+5. Return `{ sent, skippedNoEmail, failed }` for a toast/banner.
 
 **Step 5: Dashboard UI**: checkbox column + "Request addresses" button (and "Send to all"). Confirmation dialog shows count before sending.
 
