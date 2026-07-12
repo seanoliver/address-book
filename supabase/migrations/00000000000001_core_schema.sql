@@ -177,6 +177,8 @@ create policy "contact_events_select_own" on public.contact_events
 --    update_tokens gets NOTHING for any client-facing role.
 alter default privileges for role postgres in schema public
   revoke all on tables from anon, authenticated;
+alter default privileges for role postgres in schema public
+  revoke all on sequences from anon, authenticated; -- future serial/identity would leak setval
 revoke all on all tables in schema public from anon, authenticated;
 
 grant usage on schema public to authenticated;

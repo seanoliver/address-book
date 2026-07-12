@@ -322,6 +322,7 @@ git add supabase/ && git commit -m "feat: core schema with default-deny RLS"
 
 ```sql
 begin;
+create schema if not exists tests;
 create extension if not exists pgtap with schema extensions;
 select plan(14);
 
@@ -378,7 +379,9 @@ select tests.authenticate_as('00000000-0000-0000-0000-000000000001');
 select results_eq('select count(*) from public.contacts', array[1::bigint], 'owner1 sees exactly own contact');
 select results_eq('select full_name from public.contacts', array['Alice A'], 'owner1 sees Alice not Bob');
 select results_eq('select count(*) from public.books', array[1::bigint], 'owner1 sees one book');
-select results_eq('select count(*) from public.update_tokens', array[0::bigint], 'update_tokens invisible even to owner');
+-- no grant at all, so even SELECT errors (stronger than RLS row-filtering)
+select throws_ok('select count(*) from public.update_tokens', '42501', null,
+  'update_tokens not selectable even by owner');
 select results_eq('select count(*) from public.profiles', array[1::bigint], 'owner1 sees only own profile');
 select throws_ok(
   $$ insert into public.contacts (book_id, full_name)
@@ -393,7 +396,8 @@ select throws_ok(
      values ('20000000-0000-0000-0000-000000000001', '\xff', now()) $$,
   '42501', null, 'authenticated cannot mint tokens');
 
--- as owner2
+-- as owner2 (reset role first: authenticated has no USAGE on schema tests)
+reset role;
 select tests.authenticate_as('00000000-0000-0000-0000-000000000002');
 select results_eq('select full_name from public.contacts', array['Bob B'], 'owner2 sees Bob not Alice');
 select is_empty(
@@ -401,30 +405,25 @@ select is_empty(
      where id = '20000000-0000-0000-0000-000000000001' returning id $$,
   'owner2 cannot update owner1''s contact');
 
--- as anon
+-- as anon (anon holds zero grants, so even SELECT errors)
 reset role;
 set local role anon;
-select results_eq('select count(*) from public.contacts', array[0::bigint], 'anon sees nothing');
+select throws_ok('select count(*) from public.contacts', '42501', null,
+  'anon cannot even select contacts');
 
 select * from finish();
 rollback;
 ```
 
-Note: create the `tests` schema first — add to the top of the file after `begin;`:
-
-```sql
-create schema if not exists tests;
-```
-
 **Step 2: Run tests**
 
 Run: `pnpm supabase test db`
-Expected: 12/12 pass. If `authenticate_as` fixture or a policy is wrong, fix the migration (edit + `db reset`), not the assertions.
+Expected: 14/14 pass. If `authenticate_as` fixture or a policy is wrong, fix the migration (edit + `db reset`), not the assertions.
 
 **Step 3: Commit**
 
 ```bash
-git add supabase/tests/ && git commit -m "test: pgTAP RLS isolation suite"
+git add supabase/tests/ && git commit -m "test: pgTAP RLS isolation and privilege guardrails"
 ```
 
 ---
