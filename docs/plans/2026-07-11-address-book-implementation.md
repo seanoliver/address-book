@@ -6,7 +6,7 @@
 
 **Architecture:** Next.js App Router on Vercel. Browser touches only Next.js routes and Supabase Auth. All data access via server actions/route handlers → Drizzle over a direct Postgres connection, wrapped in RLS-enforcing transactions (`set local role authenticated` + JWT claims). Untrusted flows (token update, permalink submit) call `SECURITY DEFINER` functions in a `private` schema. Data API (PostgREST) disabled in production.
 
-**Tech Stack:** Next.js 15 / React 19 / TypeScript / Tailwind v4, Supabase (Postgres, Auth via `@supabase/ssr`, CLI migrations, pgTAP), Drizzle ORM + postgres.js, Resend + svix, Cloudflare Turnstile, Zod, Papaparse, Vitest, Playwright.
+**Tech Stack:** Next.js 16 (scaffolded from `@latest`; `next lint` no longer exists — use the ESLint CLI in Task 18 CI) / React 19 / TypeScript / Tailwind v4, Supabase (Postgres, Auth via `@supabase/ssr`, CLI migrations, pgTAP), Drizzle ORM + postgres.js, Resend + svix, Cloudflare Turnstile, Zod, Papaparse, Vitest, Playwright.
 
 **Conventions for every task:**
 - Supabase migrations are the ONLY source of schema truth. Drizzle schema is handwritten to mirror them; no drizzle-kit migrations.
