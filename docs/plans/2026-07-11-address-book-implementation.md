@@ -1220,6 +1220,8 @@ export async function verifyTurnstile(token: string, ip?: string): Promise<boole
 
 Note `submissions_update_own_book` policy allows the status change and RLS scopes everything else. Payload is untrusted input — it is Zod-validated here *again* before touching `contacts`, and DB CHECK constraints are the third net.
 
+**Render-time safety:** `submissions.payload` may be a non-object jsonb (scalar/array/null) and its values are attacker-controlled. The page must tolerate non-object payloads without crashing (render "malformed submission" + reject button) and rely on React's default escaping — never `dangerouslySetInnerHTML` anywhere near payload values. Same rule applies wherever `contact_events.diff` is rendered (Task 9 audit trail).
+
 **Step 3: Manual verify all three buttons. Commit.**
 
 ---
@@ -1303,7 +1305,7 @@ export async function POST(req: Request) {
 
 **Step 2: `docs/SECURITY.md`** — the OSS security story:
 - Architecture (two walls: server code + RLS; browser never reaches data APIs)
-- **Production checklist:** Dashboard → Settings → Data API → **remove all exposed schemas**; confirm `DATABASE_URL` uses the pooler with the `postgres` role only in Vercel server env; enable Supabase Auth email rate limits; set real Turnstile keys; configure Resend domain (SPF/DKIM) + webhook secret; Vercel env vars marked Sensitive.
+- **Production checklist:** Dashboard → Settings → Data API → **remove all exposed schemas**; confirm `DATABASE_URL` uses the pooler with the `postgres` role only in Vercel server env; enable Supabase Auth email rate limits; set real Turnstile keys; configure Resend domain (SPF/DKIM) + webhook secret; Vercel env vars marked Sensitive; schedule a `private.rate_limits` sweep (pg_cron: `delete from private.rate_limits where window_start < now() - interval '1 day'`) — the table grows with distinct IP×endpoint keys and has no in-band cleanup.
 - Token design, enumeration-proofing, rate limits, audit trail.
 - Reporting a vulnerability (email).
 
