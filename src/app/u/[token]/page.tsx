@@ -129,8 +129,10 @@ export default async function TokenUpdatePage({
     country: contact.country ?? "",
   };
 
-  // Bind the token server-side; Next encrypts bound action arguments, and
-  // the client never needs it beyond the URL it already has.
+  // Bind the token server-side. Note: bound args may round-trip through the
+  // client in cleartext (observed in dev) — acceptable here only because the
+  // recipient's browser already holds the token in the URL. Never bind
+  // secrets the client shouldn't see.
   const action = submitTokenUpdate.bind(null, token);
 
   return (
