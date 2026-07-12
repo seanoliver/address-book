@@ -874,6 +874,9 @@ export async function withRls<T>(
   claims: { sub: string; [k: string]: unknown },
   fn: (tx: RlsTx) => Promise<T>,
 ): Promise<T> {
+  if (!claims.sub) {
+    throw new Error("withRls: claims.sub must be a non-empty user id");
+  }
   return dbAdmin.transaction(async (tx) => {
     await tx.execute(sql`
       select set_config('request.jwt.claims', ${JSON.stringify({ ...claims, role: "authenticated" })}, true)`);
@@ -883,7 +886,15 @@ export async function withRls<T>(
     try {
       return await fn(tx);
     } finally {
-      await tx.execute(sql`reset role`);
+      // Belt-and-braces: SET LOCAL is transaction-scoped, so COMMIT/ROLLBACK
+      // restores the role either way. If fn threw a Postgres error the tx is
+      // aborted and `reset role` itself fails (25P02) — swallow that so the
+      // original error propagates instead of being masked.
+      try {
+        await tx.execute(sql`reset role`);
+      } catch {
+        // aborted transaction; rollback will restore the role
+      }
     }
   });
 }
@@ -893,15 +904,35 @@ export async function withRls<T>(
 
 Runs against the local Supabase stack (started in Task 2). This is the TS-side mirror of the pgTAP suite — it proves the *wrapper* sets the context correctly.
 
+Notes from implementation: (a) update_tokens has ZERO grants for `authenticated`,
+so selecting from it under withRls THROWS `permission denied` — it does not
+return an empty array; (b) drizzle wraps Postgres errors in DrizzleQueryError
+with the real error as `cause`, so assertions match the cause chain; (c) the
+contact is seeded with a fixed id so re-runs stay idempotent (it has no email,
+so the partial unique index would not deduplicate it).
+
 ```ts
 import { describe, it, expect, beforeAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { dbAdmin, withRls } from "./index";
 import { contacts, updateTokens } from "./schema";
 
+// drizzle wraps Postgres errors in DrizzleQueryError ("Failed query: ...")
+// with the real error as `cause` — match against the full chain.
+function chainMessage(e: unknown): string {
+  const parts: string[] = [];
+  let cur: unknown = e;
+  while (cur instanceof Error) {
+    parts.push(cur.message);
+    cur = cur.cause;
+  }
+  return parts.join(" <- ");
+}
+
 const U1 = "00000000-0000-0000-0000-00000000b001";
 const U2 = "00000000-0000-0000-0000-00000000b002";
 const B1 = "10000000-0000-0000-0000-00000000b001";
+const C1 = "20000000-0000-0000-0000-00000000b001";
 
 describe("withRls", () => {
   beforeAll(async () => {
@@ -914,9 +945,9 @@ describe("withRls", () => {
       values (${B1}, ${U1}, 'rls-test-book', 'RLS Test')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
-      insert into public.contacts (book_id, full_name)
-      values (${B1}, 'RLS Test Contact')
-      on conflict do nothing`);
+      insert into public.contacts (id, book_id, full_name)
+      values (${C1}, ${B1}, 'RLS Test Contact')
+      on conflict (id) do nothing`);
   });
 
   it("owner sees own contacts", async () => {
@@ -929,22 +960,61 @@ describe("withRls", () => {
     expect(rows.filter((r) => r.bookId === B1)).toHaveLength(0);
   });
 
-  it("update_tokens are invisible under RLS", async () => {
-    const rows = await withRls({ sub: U1 }, (tx) => tx.select().from(updateTokens));
-    expect(rows).toHaveLength(0);
+  it("update_tokens are unreachable under RLS (zero grants -> permission denied)", async () => {
+    await expect(
+      withRls({ sub: U1 }, (tx) => tx.select().from(updateTokens)),
+    ).rejects.toSatisfy((e) =>
+      /permission denied for table update_tokens/.test(chainMessage(e)),
+    );
+  });
+
+  it("rejects writes into another owner's book", async () => {
+    await expect(
+      withRls({ sub: U2 }, (tx) =>
+        tx.insert(contacts).values({ bookId: B1, fullName: "Intruder" }),
+      ),
+    ).rejects.toSatisfy((e) => /row-level security/.test(chainMessage(e)));
+  });
+
+  it("does not leave the pool connection stuck in the authenticated role", async () => {
+    // A failed withRls call must not poison the connection for admin use:
+    // update_tokens has zero grants for `authenticated`, so this only
+    // succeeds if the role was actually reset.
+    await expect(
+      withRls({ sub: U1 }, (tx) => tx.select().from(updateTokens)),
+    ).rejects.toThrow();
+    const rows = await dbAdmin.select().from(updateTokens);
+    expect(Array.isArray(rows)).toBe(true);
+  });
+
+  it("throws immediately when claims.sub is missing or empty", async () => {
+    await expect(
+      withRls({ sub: "" }, (tx) => tx.select().from(contacts)),
+    ).rejects.toThrow(/sub/);
   });
 });
 ```
 
-**Step 4: Run** `pnpm test` → expect 3 pass (requires `supabase start` running and `.env.local` loaded — add `import "dotenv/config"` handling: install `dotenv` and add `env: { ...loadEnv }` OR simpler: run vitest with `pnpm dlx dotenv-cli`? Simplest: add to `vitest.config.ts`:
+**Step 4: Run** `pnpm test` → expect 6 pass (requires `supabase start` running and `.env.local` loaded). Env loading: `loadEnv` from `vite` in `vitest.config.ts` (pnpm's strict node_modules means `vite` must be added as an explicit devDependency — it resolves to the same version vitest already uses). Drop the now-stale `passWithNoTests: true`. Final `vitest.config.ts`:
 
 ```ts
+import { defineConfig } from "vitest/config";
 import { loadEnv } from "vite";
-// inside defineConfig:
-test: { environment: "node", include: ["src/**/*.test.ts"], env: loadEnv("", process.cwd(), "") },
+import path from "node:path";
+
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["src/**/*.test.ts"],
+    // loadEnv("", ...) reads .env + .env.local; prefix "" exposes all keys
+    // (tests need server-only vars like DATABASE_URL, not just NEXT_PUBLIC_*)
+    env: loadEnv("", process.cwd(), ""),
+  },
+  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+});
 ```
 
-**Step 5: Commit** `git add src/lib/db vitest.config.ts && git commit -m "feat: drizzle schema + RLS transaction wrapper with integration tests"`
+**Step 5: Commit** `git add src/lib/db vitest.config.ts package.json pnpm-lock.yaml && git commit -m "feat: drizzle schema + RLS transaction wrapper with integration tests"`
 
 ---
 
