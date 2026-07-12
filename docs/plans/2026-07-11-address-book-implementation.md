@@ -650,7 +650,8 @@ declare
   v_before jsonb;
 begin
   -- untrusted input: refuse non-object or oversized payloads outright
-  if jsonb_typeof(p_payload) <> 'object'
+  if p_payload is null
+     or jsonb_typeof(p_payload) <> 'object'
      or pg_column_size(p_payload) > 65536 then
     return false;
   end if;
@@ -713,7 +714,8 @@ declare
   v_match uuid;
 begin
   -- untrusted input: refuse non-object or oversized payloads outright
-  if jsonb_typeof(p_payload) <> 'object'
+  if p_payload is null
+     or jsonb_typeof(p_payload) <> 'object'
      or pg_column_size(p_payload) > 65536 then
     return false;
   end if;
