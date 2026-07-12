@@ -1,15 +1,10 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
-import { withRls } from "@/lib/db";
-import { books } from "@/lib/db/schema";
+import { getOwnBook } from "@/lib/queries/books";
 
 export default async function DashboardPage() {
   const claims = await requireUser();
-
-  const [book] = await withRls(claims, (tx) =>
-    tx.select().from(books).where(eq(books.ownerId, claims.sub)).limit(1),
-  );
+  const book = await getOwnBook(claims);
 
   // Onboarding: no book yet → set one up first.
   if (!book) redirect("/dashboard/settings");

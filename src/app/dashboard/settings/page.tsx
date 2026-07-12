@@ -1,15 +1,10 @@
-import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
-import { withRls } from "@/lib/db";
-import { books } from "@/lib/db/schema";
+import { getOwnBook } from "@/lib/queries/books";
 import { BookForm } from "./book-form";
 
 export default async function SettingsPage() {
   const claims = await requireUser();
-
-  const [book] = await withRls(claims, (tx) =>
-    tx.select().from(books).where(eq(books.ownerId, claims.sub)).limit(1),
-  );
+  const book = await getOwnBook(claims);
 
   const urlPrefix = `${process.env.APP_URL}/b/`;
 

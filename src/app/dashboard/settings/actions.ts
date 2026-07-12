@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { books } from "@/lib/db/schema";
+import { logDbError } from "@/lib/log";
 import { bookSchema } from "@/lib/validation/book";
 
 export type BookFormValues = {
@@ -81,13 +82,15 @@ export async function saveBook(
     if (isUniqueViolation(err, "books_slug_key")) {
       return { error: "That link name is taken", values: submitted };
     }
-    console.error("[bk] [saveBook] upsert failed", err);
+    logDbError("[bk] [saveBook] upsert failed", err);
     return {
       error: "Something went wrong. Please try again.",
       values: submitted,
     };
   }
 
+  // Task 12: also revalidate the old + new /b/[slug] paths when the public
+  // page exists.
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");
   return { saved: true };
