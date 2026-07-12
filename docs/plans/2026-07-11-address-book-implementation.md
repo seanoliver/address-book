@@ -1540,7 +1540,9 @@ export async function POST(req: Request) {
 - Token design, enumeration-proofing, rate limits, audit trail.
 - Reporting a vulnerability (email).
 
-**Step 3: CI** (`.github/workflows/ci.yml`): jobs — `lint` (next lint + tsc), `unit` (vitest), `db` (supabase CLI action: `supabase start` → `supabase test db`). Playwright optional nightly (skip in v1 CI if flaky).
+**Step 3: CI** (`.github/workflows/ci.yml`): jobs — `lint` (ESLint CLI + tsc; `next lint` no longer exists in Next 16), `unit` (vitest), `db` (supabase CLI action: `supabase start` → `supabase test db`). Playwright optional nightly (skip in v1 CI if flaky).
+
+**Step 3b: Deferred polish (from Task 6 review):** validate required env vars at startup (`APP_URL` fails silently today — a tiny `src/lib/env.ts` asserting presence of APP_URL/DATABASE_URL/RESEND_API_KEY in server entrypoints); add `useFormStatus` pending state to the login submit buttons.
 
 **Step 4: Final full run:** `pnpm lint && pnpm test && pnpm test:db && pnpm exec playwright test` — all green.
 
