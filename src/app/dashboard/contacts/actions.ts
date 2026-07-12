@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { dbAdmin } from "@/lib/db/admin";
+import { contactInputToRow as toRow } from "@/lib/db/contact-row";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { books, contactEvents, contacts } from "@/lib/db/schema";
 import { logDbError } from "@/lib/log";
@@ -37,24 +38,6 @@ function readContactForm(formData: FormData): ContactFormValues {
   return Object.fromEntries(
     CONTACT_FIELDS.map((field) => [field, String(formData.get(field) ?? "")]),
   ) as ContactFormValues;
-}
-
-/** Parsed input → drizzle column values (cleared optionals become NULL). */
-function toRow(d: ContactInput) {
-  return {
-    fullName: d.full_name,
-    partnerName: d.partner_name ?? null,
-    kidsNames: d.kids_names ?? null,
-    email: d.email ?? null,
-    birthday: d.birthday ?? null,
-    addressLine1: d.address_line1 ?? null,
-    addressLine2: d.address_line2 ?? null,
-    city: d.city ?? null,
-    stateRegion: d.state_region ?? null,
-    postalCode: d.postal_code ?? null,
-    country: d.country ?? null,
-    notes: d.notes ?? null,
-  };
 }
 
 /** Field snapshot keyed by form/schema names, for audit diffs. */
