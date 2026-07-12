@@ -25,6 +25,17 @@ describe("addressRequestEmail", () => {
     expect(text).toContain("expires in 30 days");
   });
 
+  it("strips control characters from the owner name in the subject", () => {
+    const { subject } = addressRequestEmail({
+      ...base,
+      ownerName: "Eve\r\nBcc: victim@test.dev\tX",
+    });
+    expect(subject).toBe(
+      "Eve Bcc: victim@test.dev X would like your current mailing address",
+    );
+    expect(subject).not.toMatch(/[\r\n\t]/);
+  });
+
   it("escapes user-controlled owner name and book title in html", () => {
     const { html } = addressRequestEmail({
       ...base,

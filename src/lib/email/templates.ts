@@ -37,9 +37,13 @@ export function addressRequestEmail({
   bookTitle,
   updateUrl,
 }: AddressRequestEmailInput): EmailContent {
-  const subject = `${ownerName} would like your current mailing address`;
+  // Strip control chars (CR/LF included) from the user-controlled name before
+  // it enters the subject line. Resend's JSON API can't be header-injected,
+  // but that guarantee shouldn't be outsourced to the transport.
+  const safeOwnerName = ownerName.replace(/\p{Cc}+/gu, " ").trim();
+  const subject = `${safeOwnerName} would like your current mailing address`;
 
-  const owner = escapeHtml(ownerName);
+  const owner = escapeHtml(safeOwnerName);
   const title = escapeHtml(bookTitle);
   const url = escapeHtml(updateUrl);
 
@@ -55,7 +59,7 @@ export function addressRequestEmail({
 
   const text = `Hi,
 
-${ownerName} is updating ${bookTitle} and would like to make sure your mailing address is current.
+${safeOwnerName} is updating ${bookTitle} and would like to make sure your mailing address is current.
 
 It takes less than a minute — confirm or update your details here:
 

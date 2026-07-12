@@ -23,6 +23,17 @@ const BATCH_LIMIT = 100;
 // so a repeated "dry_0" would fail the insert on the second run.
 let dryRunCounter = 0;
 
+/**
+ * Dry-run predicate, shared with requestAddresses' up-front env validation.
+ * NODE_ENV-gated so a stray EMAIL_DRY_RUN=1 in production can never divert
+ * real sends into console logs of raw token links.
+ */
+export function isEmailDryRun(): boolean {
+  return (
+    process.env.EMAIL_DRY_RUN === "1" && process.env.NODE_ENV !== "production"
+  );
+}
+
 let client: Resend | undefined;
 function getClient(): Resend {
   if (!client) {
@@ -46,7 +57,7 @@ function getClient(): Resend {
 export async function sendAddressRequests(
   items: AddressRequestItem[],
 ): Promise<SendResult[]> {
-  if (process.env.EMAIL_DRY_RUN === "1") {
+  if (isEmailDryRun()) {
     return items.map((item) => {
       // Dev-only: surface the tokenized link so it can be opened locally.
       const url = item.text.match(/https?:\/\/\S+/)?.[0] ?? "<no url found>";

@@ -12,15 +12,18 @@ import { withRls } from "@/lib/db";
 // RLS query IS the authorization.
 import { dbAdmin } from "@/lib/db/admin";
 import { books, contacts, emailSends, profiles, updateTokens } from "@/lib/db/schema";
-import { sendAddressRequests } from "@/lib/email/resend";
+import { isEmailDryRun, sendAddressRequests } from "@/lib/email/resend";
 import { addressRequestEmail } from "@/lib/email/templates";
 import { logDbError } from "@/lib/log";
 import { generateToken, TOKEN_TTL_DAYS } from "@/lib/tokens";
 
-const requestSchema = z.union([
-  z.object({ contactIds: z.array(z.uuid()).min(1).max(1000) }),
-  z.object({ all: z.literal(true) }),
-]);
+// Explicit ids only — no "send to everything" mode. The client sends the ids
+// of the rows it actually displayed, so what the user confirmed in the dialog
+// is exactly what fans out (a search-filtered "Send to all" must not quietly
+// email — and rotate the live links of — the rest of the book).
+const requestSchema = z.object({
+  contactIds: z.array(z.uuid()).min(1).max(1000),
+});
 
 export type RequestAddressesInput = z.input<typeof requestSchema>;
 
@@ -48,6 +51,13 @@ export async function requestAddresses(
 
   const appUrl = process.env.APP_URL;
   if (!appUrl) throw new Error("APP_URL is not set");
+  // Validate email config BEFORE minting: failing after the mint would have
+  // already rotated away working links and left orphan tokens for emails
+  // that never went out. Same predicate the email layer uses to pick a mode.
+  if (!isEmailDryRun()) {
+    if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+    if (!process.env.EMAIL_FROM) throw new Error("EMAIL_FROM is not set");
+  }
 
   // Authorization = RLS: this select can only ever return the caller's own
   // contacts. Ids belonging to another user silently drop out here.
@@ -80,9 +90,7 @@ export async function requestAddresses(
         .where(
           and(
             eq(contacts.bookId, book.id),
-            "contactIds" in parsed.data
-              ? inArray(contacts.id, parsed.data.contactIds)
-              : undefined,
+            inArray(contacts.id, parsed.data.contactIds),
           ),
         );
 

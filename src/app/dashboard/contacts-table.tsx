@@ -65,9 +65,18 @@ const tdClasses = "px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300";
 const buttonClasses =
   "inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800";
 
-type ConfirmState =
-  | { mode: "selected"; sendable: number; skipped: number }
-  | { mode: "all"; sendable: number; skipped: number };
+/**
+ * Ids are captured when the dialog opens so the send targets exactly what the
+ * user confirmed. There is deliberately no "whole book" mode: with an active
+ * search the table shows a filtered subset, and a server-side fan-out would
+ * email (and rotate the live links of) contacts the dialog never mentioned.
+ */
+type ConfirmState = {
+  mode: "selected" | "shown";
+  ids: string[];
+  sendable: number;
+  skipped: number;
+};
 
 export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -138,7 +147,12 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
           type="button"
           disabled={selectedCount === 0 || isPending}
           onClick={() =>
-            setConfirm({ mode: "selected", sendable: selectedCount, skipped: 0 })
+            setConfirm({
+              mode: "selected",
+              ids: emailableIds.filter((id) => selected.has(id)),
+              sendable: selectedCount,
+              skipped: 0,
+            })
           }
           className={buttonClasses}
         >
@@ -148,15 +162,19 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
           type="button"
           disabled={rows.length === 0 || isPending}
           onClick={() =>
+            // All VISIBLE rows (search-filtered), never the whole book. The
+            // no-email ones are included so the server reports them skipped.
+            // slice: the action caps at 1000 ids per request.
             setConfirm({
-              mode: "all",
+              mode: "shown",
+              ids: rows.slice(0, 1000).map((row) => row.id),
               sendable: emailableIds.length,
               skipped: rows.length - emailableIds.length,
             })
           }
           className={buttonClasses}
         >
-          Send to all
+          Send to all shown
         </button>
         {isPending ? (
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -175,7 +193,9 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
             Send address requests to{" "}
             <strong>
-              {confirm.sendable} {confirm.sendable === 1 ? "contact" : "contacts"}
+              {confirm.mode === "shown"
+                ? `the ${confirm.sendable} ${confirm.sendable === 1 ? "contact" : "contacts"} shown`
+                : `${confirm.sendable} ${confirm.sendable === 1 ? "contact" : "contacts"}`}
             </strong>
             {confirm.skipped > 0 ? (
               <> — {confirm.skipped} will be skipped (no email)</>
@@ -187,13 +207,7 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
             <button
               type="button"
               disabled={confirm.sendable === 0 || isPending}
-              onClick={() =>
-                fire(
-                  confirm.mode === "all"
-                    ? { all: true }
-                    : { contactIds: emailableIds.filter((id) => selected.has(id)) },
-                )
-              }
+              onClick={() => fire({ contactIds: confirm.ids })}
               className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
               Confirm and send
