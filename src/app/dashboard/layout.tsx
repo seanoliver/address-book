@@ -25,7 +25,8 @@ export default async function DashboardLayout({
           <Link href="/dashboard" className={navLinkClasses}>
             Contacts
           </Link>
-          {/* route lands in Task 15 */}
+          {/* No pending-count badge in v1: the layout would need a
+              per-navigation count query. Revisit post-v1 (Task 18 polish). */}
           <Link href="/dashboard/review" className={navLinkClasses}>
             Review
           </Link>

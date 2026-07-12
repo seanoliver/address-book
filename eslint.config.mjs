@@ -43,6 +43,10 @@ const eslintConfig = defineConfig([
       // write (contact_events is client-unwritable by design — no insert
       // policy or grant for `authenticated`).
       "src/app/dashboard/contacts/actions.ts",
+      // Sanctioned: same audit-append pattern — review approvals write
+      // contacts/submissions through withRls and use dbAdmin ONLY for the
+      // contact_events row (source 'submission') after the RLS write.
+      "src/app/dashboard/review/actions.ts",
     ],
     rules: { "no-restricted-imports": "off" },
   },

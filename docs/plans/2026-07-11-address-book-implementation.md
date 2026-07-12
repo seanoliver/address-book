@@ -1475,6 +1475,15 @@ Note `submissions_update_own_book` policy allows the status change and RLS scope
 
 **Step 3: Manual verify all three buttons. Commit.**
 
+**As built (deviations):**
+- Added `src/lib/queries/submissions.ts` (`listPendingSubmissions`: withRls, own book, pending only, newest first, left-joined matched contact, LIMIT 200) and `src/lib/validation/submission.ts` (lenient DISPLAY-only parser + `dropDisabledFields`, unit-tested incl. `__proto__`/non-string/non-object hostile shapes). Buttons live in a small client component `review/review-card-actions.tsx` (useActionState per action).
+- Strict re-validation uses `tokenUpdateSchema` (not `contactSchema` as sketched): submissions can never carry `notes` (owner-private), and the omit-schema strips a smuggled one. Both approve actions then drop book-DISABLED fields via the same `dropDisabledFields` helper the page uses — display and merge can never disagree about gating. E2e-verified: smuggled `kids_names` on a kids-disabled book neither displays nor merges (stored NULL).
+- Display parse is lenient and per-card: unknown keys dropped, non-string values dropped (not card-fatal), values display-truncated at 200 chars; non-object payload (pre-CHECK legacy/hostile) → "Malformed submission" card with Reject only; parsing never throws, so one bad row can't take down the page. XSS strings e2e-verified inert (React escaping; no dialog, no live script/img element).
+- Merge semantics: PRESENT keys overwrite, ABSENT keys untouched — payloads are value-bearing by construction (Task 14 drops empty values), and `tokenUpdateSchema` maps `""`→undefined, so a hostile empty string is treated as absent and can never CLEAR a column (deliberate difference from token updates). No-op merges (nothing changed) mark approved without touching the contact and write no audit row.
+- `approveNew` email conflict (23505 on `contacts_book_email_unique`) rolls back and returns "You already have a contact with this email — use Apply update on the matching card or reject this one." — submission stays pending (e2e-verified). Audit rows (`source: 'submission'`, `{after}` for creates / changed-fields `{before, after}` for merges) via `dbAdmin`, path allowlisted in eslint.config.mjs with the same rationale as contact CRUD.
+- No pending-count badge in the dashboard nav for v1 (a layout-level count query would run per navigation); noted in `dashboard/layout.tsx`, revisit in Task 18 polish.
+- Verified via full e2e (Playwright + Mailpit, 55 checks): real /b/ submissions (new + citext-matched), hostile SQL-inserted payload (`<script>`, `<img onerror>`, smuggled `kids_names`, unknown key), approve-new/approve-merge/reject/duplicate-email/user-isolation flows, DB + audit assertions.
+
 ---
 
 ## Task 16: Resend webhook + status chips
