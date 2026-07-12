@@ -503,7 +503,7 @@ git add supabase/tests/ && git commit -m "test: pgTAP RLS isolation and privileg
 ```sql
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(12);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'own@test.dev');
 update public.profiles set full_name = 'Sean O' where id = '00000000-0000-0000-0000-0000000000a1';
@@ -550,6 +550,14 @@ select results_eq(
   $$ select status, (matched_contact_id is not null) from public.submissions $$,
   $$ values ('pending', true) $$,
   'submission pending and matched to existing contact by email');
+-- submit in its own statement: a scalar subquery in the same SELECT would use
+-- the statement snapshot and never see the row the volatile function inserts
+do $$ begin
+  perform private.submit_to_book('seans-book', '{"full_name": "Casey C", "email": "ALICE@test.DEV"}');
+end $$;
+select ok((select matched_contact_id is not null from public.submissions
+           where payload ->> 'email' = 'ALICE@test.DEV'),
+  'mixed-case email still matches contact (citext equality under locked search_path)');
 
 -- rate limit
 select ok(private.check_rate_limit('k1', 2, 60) and private.check_rate_limit('k1', 2, 60)
@@ -701,7 +709,7 @@ revoke all on function private.submit_to_book(text, jsonb) from public, anon, au
 pnpm supabase db reset && pnpm supabase test db
 ```
 
-Expected: both test files pass (23 + 11).
+Expected: both test files pass (23 + 12).
 
 **Step 5: Commit**
 
