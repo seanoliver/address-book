@@ -8,12 +8,24 @@ import { z } from "zod";
 const opt = (max: number) =>
   z.string().trim().max(max).transform((s) => s === "" ? undefined : s).optional();
 
+/**
+ * Calendar-valid YYYY-MM-DD only. Roundtrips through Date because V8 rolls
+ * over out-of-range days ("2025-02-30" parses as March 2) — the re-serialized
+ * date must equal the input exactly.
+ */
+const isRealDate = (s: string) => {
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+};
+
 export const contactSchema = z.object({
   full_name: z.string().trim().min(1).max(200),
   partner_name: opt(200),
   kids_names: opt(500),
   email: z.string().trim().max(320).pipe(z.email().or(z.literal(""))).transform((s) => s === "" ? undefined : s).optional(),
-  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).transform((s) => s === "" ? undefined : s).optional(),
+  // refine: shape-valid but calendar-invalid dates ("2025-99-99") must never
+  // reach the Postgres date cast — class-22 errors embed the value in logs
+  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDate, "Invalid date").or(z.literal("")).transform((s) => s === "" ? undefined : s).optional(),
   address_line1: opt(200), address_line2: opt(200),
   city: opt(120), state_region: opt(120),
   postal_code: opt(20), country: opt(120),

@@ -106,4 +106,12 @@ describe("contactSchema", () => {
       contactSchema.safeParse({ ...base, birthday: "1990-5-4" }).success,
     ).toBe(false);
   });
+
+  it("rejects calendar-invalid birthdays that match the shape", () => {
+    // Shape-valid but not real dates: these must never reach the Postgres
+    // date cast (class-22 errors embed the input value in log messages).
+    for (const birthday of ["2025-99-99", "2025-13-01", "2025-02-30", "0000-00-00"]) {
+      expect(contactSchema.safeParse({ ...base, birthday }).success).toBe(false);
+    }
+  });
 });

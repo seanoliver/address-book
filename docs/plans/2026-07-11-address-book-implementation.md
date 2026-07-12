@@ -1290,7 +1290,9 @@ export const contactSchema = z.object({
   partner_name: opt(200),
   kids_names: opt(500),
   email: z.string().trim().max(320).pipe(z.email().or(z.literal(""))).transform((s) => s === "" ? undefined : s).optional(),
-  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal("")).transform((s) => s === "" ? undefined : s).optional(),
+  // refine: shape-valid but calendar-invalid dates ("2025-99-99") must never
+  // reach the Postgres date cast — class-22 errors embed the value in logs
+  birthday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(isRealDate, "Invalid date").or(z.literal("")).transform((s) => s === "" ? undefined : s).optional(),
   address_line1: opt(200), address_line2: opt(200),
   city: opt(120), state_region: opt(120),
   postal_code: opt(20), country: opt(120),
