@@ -47,8 +47,16 @@ export default async function LoginPage({
         </p>
 
         {sent ? (
-          <div className="mt-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
-            Check your email for a sign-in link.
+          <div className="mt-6 flex flex-col gap-3">
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+              Check your email for a sign-in link.
+            </div>
+            <a
+              href="/login"
+              className="text-sm text-zinc-500 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Use a different email
+            </a>
           </div>
         ) : (
           <>

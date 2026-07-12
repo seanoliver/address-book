@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * No auth gating happens here — requireUser() in pages/actions does that.
  * Public routes (/b/*, /u/*, /api/webhooks/*) are excluded by the matcher in
- * src/middleware.ts and never reach this code.
+ * src/proxy.ts and never reach this code.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
