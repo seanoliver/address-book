@@ -27,8 +27,10 @@ create policy "profiles_update_own" on public.profiles
 create or replace function private.handle_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
+  -- left(): raw_user_meta_data is client-controlled; an over-long name must
+  -- not fail the profiles CHECK and abort the auth.users insert (breaks signup)
   insert into public.profiles (id, full_name)
-  values (new.id, coalesce(new.raw_user_meta_data ->> 'full_name', ''));
+  values (new.id, left(coalesce(new.raw_user_meta_data ->> 'full_name', ''), 200));
   return new;
 end $$;
 create trigger on_auth_user_created
@@ -165,10 +167,18 @@ create policy "contact_events_select_own" on public.contact_events
                  where c.id = contact_id and b.owner_id = (select auth.uid())));
 
 -- ── explicit least-privilege grants ─────────────────────────────────────
--- Current Supabase defaults no longer auto-expose new public tables to
--- client roles, so every privilege is granted explicitly. RLS policies
--- above then filter rows within these grants. anon gets NOTHING;
--- update_tokens gets NOTHING for any client-facing role.
+-- Two hazards handled here:
+-- 1. Current Supabase defaults no longer auto-expose new public tables
+--    (no SELECT/INSERT/UPDATE/DELETE), so DML must be granted explicitly.
+-- 2. Supabase's default ACLs DO still leave residual TRUNCATE/REFERENCES/
+--    TRIGGER/MAINTAIN for client roles — and RLS does not apply to
+--    TRUNCATE. Revoke everything (now and for future tables), then grant
+--    back exactly what the policies mediate. anon gets NOTHING;
+--    update_tokens gets NOTHING for any client-facing role.
+alter default privileges for role postgres in schema public
+  revoke all on tables from anon, authenticated;
+revoke all on all tables in schema public from anon, authenticated;
+
 grant usage on schema public to authenticated;
 grant select, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.books to authenticated;
