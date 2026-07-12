@@ -96,7 +96,8 @@ create trigger contacts_touch before update on public.contacts
 create table public.submissions (
   id uuid primary key default gen_random_uuid(),
   book_id uuid not null references public.books (id) on delete cascade,
-  payload jsonb not null,
+  payload jsonb not null
+    check (jsonb_typeof(payload) = 'object' and pg_column_size(payload) <= 65536),
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   matched_contact_id uuid references public.contacts (id) on delete set null,
   created_at timestamptz not null default now()
@@ -155,7 +156,7 @@ create table public.contact_events (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid not null references public.contacts (id) on delete cascade,
   source text not null check (source in ('owner','token','submission')),
-  diff jsonb not null,
+  diff jsonb not null check (pg_column_size(diff) <= 131072),
   created_at timestamptz not null default now()
 );
 alter table public.contact_events enable row level security;

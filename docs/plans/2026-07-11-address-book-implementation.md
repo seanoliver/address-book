@@ -203,7 +203,8 @@ create trigger contacts_touch before update on public.contacts
 create table public.submissions (
   id uuid primary key default gen_random_uuid(),
   book_id uuid not null references public.books (id) on delete cascade,
-  payload jsonb not null,
+  payload jsonb not null
+    check (jsonb_typeof(payload) = 'object' and pg_column_size(payload) <= 65536),
   status text not null default 'pending' check (status in ('pending','approved','rejected')),
   matched_contact_id uuid references public.contacts (id) on delete set null,
   created_at timestamptz not null default now()
@@ -262,7 +263,7 @@ create table public.contact_events (
   id uuid primary key default gen_random_uuid(),
   contact_id uuid not null references public.contacts (id) on delete cascade,
   source text not null check (source in ('owner','token','submission')),
-  diff jsonb not null,
+  diff jsonb not null check (pg_column_size(diff) <= 131072),
   created_at timestamptz not null default now()
 );
 alter table public.contact_events enable row level security;
@@ -503,7 +504,7 @@ git add supabase/tests/ && git commit -m "test: pgTAP RLS isolation and privileg
 ```sql
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'own@test.dev');
 update public.profiles set full_name = 'Sean O' where id = '00000000-0000-0000-0000-0000000000a1';
@@ -517,7 +518,8 @@ insert into public.contacts (id, book_id, full_name, email, city) values
 -- token whose plaintext is 'testtoken' (hash computed inline)
 insert into public.update_tokens (contact_id, token_hash, expires_at) values
   ('20000000-0000-0000-0000-0000000000a1', extensions.digest('testtoken', 'sha256'), now() + interval '30 days'),
-  ('20000000-0000-0000-0000-0000000000a1', extensions.digest('expiredtoken', 'sha256'), now() - interval '1 day');
+  ('20000000-0000-0000-0000-0000000000a1', extensions.digest('expiredtoken', 'sha256'), now() - interval '1 day'),
+  ('20000000-0000-0000-0000-0000000000a1', extensions.digest('secondtoken', 'sha256'), now() + interval '30 days');
 
 -- get_contact_for_token
 select ok((private.get_contact_for_token('testtoken')) -> 'contact' ->> 'full_name' = 'Alice A',
@@ -543,6 +545,13 @@ select results_eq(
      where contact_id = '20000000-0000-0000-0000-0000000000a1' and source = 'token' $$,
   array[1::bigint], 'audit row written');
 
+-- audit whitelist: unmapped keys from the untrusted payload never reach storage
+select ok(private.apply_token_update('secondtoken', '{"city": "JunkTown", "hax": "pwn"}'),
+  'second token update succeeds');
+select is_empty(
+  $$ select 1 from public.contact_events where diff -> 'payload' ? 'hax' $$,
+  'audit payload contains only whitelisted keys');
+
 -- submit_to_book: inserts pending submission, matches on email, enum-proof return
 select ok((private.submit_to_book('seans-book', '{"full_name": "New Guy", "email": "alice@test.dev"}')) = true,
   'submit to valid slug succeeds');
@@ -558,6 +567,14 @@ end $$;
 select ok((select matched_contact_id is not null from public.submissions
            where payload ->> 'email' = 'ALICE@test.DEV'),
   'mixed-case email still matches contact (citext equality under locked search_path)');
+
+-- payload guards: non-object and oversized payloads are rejected, nothing stored
+select ok(not private.submit_to_book('seans-book', '"str"'::jsonb),
+  'non-object payload rejected');
+select ok(not private.submit_to_book('seans-book', jsonb_build_object('full_name', repeat('x', 70000))),
+  'oversized payload rejected');
+select results_eq('select count(*) from public.submissions', array[2::bigint],
+  'rejected payloads inserted nothing');
 
 -- rate limit
 select ok(private.check_rate_limit('k1', 2, 60) and private.check_rate_limit('k1', 2, 60)
@@ -593,8 +610,9 @@ begin
   insert into private.rate_limits as r (key, count, window_start)
   values (p_key, 1, now())
   on conflict (key) do update set
+    -- least(): blocked calls needn't keep counting; also rules out int overflow
     count = case when r.window_start < now() - make_interval(secs => p_window_seconds)
-                 then 1 else r.count + 1 end,
+                 then 1 else least(r.count + 1, p_max + 1) end,
     window_start = case when r.window_start < now() - make_interval(secs => p_window_seconds)
                         then now() else r.window_start end
   returning r.count <= p_max into v_ok;
@@ -631,6 +649,12 @@ declare
   v_enabled jsonb;
   v_before jsonb;
 begin
+  -- untrusted input: refuse non-object or oversized payloads outright
+  if jsonb_typeof(p_payload) <> 'object'
+     or pg_column_size(p_payload) > 65536 then
+    return false;
+  end if;
+
   select t.contact_id, b.enabled_fields
     into v_contact_id, v_enabled
   from public.update_tokens t
@@ -667,9 +691,16 @@ begin
     set used_at = now()
   where token_hash = extensions.digest(p_token, 'sha256');
 
+  -- audit only keys this function can map: junk keys from the untrusted
+  -- payload never reach storage
   insert into public.contact_events (contact_id, source, diff)
-  values (v_contact_id, 'token',
-          jsonb_build_object('before', v_before, 'payload', p_payload));
+  values (v_contact_id, 'token', jsonb_build_object(
+    'before', v_before,
+    'payload', p_payload - array(
+      select k from jsonb_object_keys(p_payload) k
+      where k not in ('full_name', 'email', 'partner_name', 'kids_names', 'birthday',
+                      'address_line1', 'address_line2', 'city', 'state_region',
+                      'postal_code', 'country'))));
 
   return true;
 end $$;
@@ -681,6 +712,12 @@ declare
   v_book_id uuid;
   v_match uuid;
 begin
+  -- untrusted input: refuse non-object or oversized payloads outright
+  if jsonb_typeof(p_payload) <> 'object'
+     or pg_column_size(p_payload) > 65536 then
+    return false;
+  end if;
+
   select id into v_book_id from public.books where slug = p_slug;
   if v_book_id is null then return false; end if;
 
@@ -709,7 +746,7 @@ revoke all on function private.submit_to_book(text, jsonb) from public, anon, au
 pnpm supabase db reset && pnpm supabase test db
 ```
 
-Expected: both test files pass (23 + 12).
+Expected: both test files pass (23 + 17).
 
 **Step 5: Commit**
 

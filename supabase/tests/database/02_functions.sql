@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(17);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'own@test.dev');
 update public.profiles set full_name = 'Sean O' where id = '00000000-0000-0000-0000-0000000000a1';
@@ -14,7 +14,8 @@ insert into public.contacts (id, book_id, full_name, email, city) values
 -- token whose plaintext is 'testtoken' (hash computed inline)
 insert into public.update_tokens (contact_id, token_hash, expires_at) values
   ('20000000-0000-0000-0000-0000000000a1', extensions.digest('testtoken', 'sha256'), now() + interval '30 days'),
-  ('20000000-0000-0000-0000-0000000000a1', extensions.digest('expiredtoken', 'sha256'), now() - interval '1 day');
+  ('20000000-0000-0000-0000-0000000000a1', extensions.digest('expiredtoken', 'sha256'), now() - interval '1 day'),
+  ('20000000-0000-0000-0000-0000000000a1', extensions.digest('secondtoken', 'sha256'), now() + interval '30 days');
 
 -- get_contact_for_token
 select ok((private.get_contact_for_token('testtoken')) -> 'contact' ->> 'full_name' = 'Alice A',
@@ -40,6 +41,13 @@ select results_eq(
      where contact_id = '20000000-0000-0000-0000-0000000000a1' and source = 'token' $$,
   array[1::bigint], 'audit row written');
 
+-- audit whitelist: unmapped keys from the untrusted payload never reach storage
+select ok(private.apply_token_update('secondtoken', '{"city": "JunkTown", "hax": "pwn"}'),
+  'second token update succeeds');
+select is_empty(
+  $$ select 1 from public.contact_events where diff -> 'payload' ? 'hax' $$,
+  'audit payload contains only whitelisted keys');
+
 -- submit_to_book: inserts pending submission, matches on email, enum-proof return
 select ok((private.submit_to_book('seans-book', '{"full_name": "New Guy", "email": "alice@test.dev"}')) = true,
   'submit to valid slug succeeds');
@@ -55,6 +63,14 @@ end $$;
 select ok((select matched_contact_id is not null from public.submissions
            where payload ->> 'email' = 'ALICE@test.DEV'),
   'mixed-case email still matches contact (citext equality under locked search_path)');
+
+-- payload guards: non-object and oversized payloads are rejected, nothing stored
+select ok(not private.submit_to_book('seans-book', '"str"'::jsonb),
+  'non-object payload rejected');
+select ok(not private.submit_to_book('seans-book', jsonb_build_object('full_name', repeat('x', 70000))),
+  'oversized payload rejected');
+select results_eq('select count(*) from public.submissions', array[2::bigint],
+  'rejected payloads inserted nothing');
 
 -- rate limit
 select ok(private.check_rate_limit('k1', 2, 60) and private.check_rate_limit('k1', 2, 60)

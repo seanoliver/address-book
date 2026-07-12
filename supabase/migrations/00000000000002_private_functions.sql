@@ -16,8 +16,9 @@ begin
   insert into private.rate_limits as r (key, count, window_start)
   values (p_key, 1, now())
   on conflict (key) do update set
+    -- least(): blocked calls needn't keep counting; also rules out int overflow
     count = case when r.window_start < now() - make_interval(secs => p_window_seconds)
-                 then 1 else r.count + 1 end,
+                 then 1 else least(r.count + 1, p_max + 1) end,
     window_start = case when r.window_start < now() - make_interval(secs => p_window_seconds)
                         then now() else r.window_start end
   returning r.count <= p_max into v_ok;
@@ -54,6 +55,12 @@ declare
   v_enabled jsonb;
   v_before jsonb;
 begin
+  -- untrusted input: refuse non-object or oversized payloads outright
+  if jsonb_typeof(p_payload) <> 'object'
+     or pg_column_size(p_payload) > 65536 then
+    return false;
+  end if;
+
   select t.contact_id, b.enabled_fields
     into v_contact_id, v_enabled
   from public.update_tokens t
@@ -90,9 +97,16 @@ begin
     set used_at = now()
   where token_hash = extensions.digest(p_token, 'sha256');
 
+  -- audit only keys this function can map: junk keys from the untrusted
+  -- payload never reach storage
   insert into public.contact_events (contact_id, source, diff)
-  values (v_contact_id, 'token',
-          jsonb_build_object('before', v_before, 'payload', p_payload));
+  values (v_contact_id, 'token', jsonb_build_object(
+    'before', v_before,
+    'payload', p_payload - array(
+      select k from jsonb_object_keys(p_payload) k
+      where k not in ('full_name', 'email', 'partner_name', 'kids_names', 'birthday',
+                      'address_line1', 'address_line2', 'city', 'state_region',
+                      'postal_code', 'country'))));
 
   return true;
 end $$;
@@ -104,6 +118,12 @@ declare
   v_book_id uuid;
   v_match uuid;
 begin
+  -- untrusted input: refuse non-object or oversized payloads outright
+  if jsonb_typeof(p_payload) <> 'object'
+     or pg_column_size(p_payload) > 65536 then
+    return false;
+  end if;
+
   select id into v_book_id from public.books where slug = p_slug;
   if v_book_id is null then return false; end if;
 
