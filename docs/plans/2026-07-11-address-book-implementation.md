@@ -1418,6 +1418,14 @@ export async function verifyTurnstile(token: string, ip?: string): Promise<boole
 
 **Step 4: Manual verify:** open dry-run URL → form pre-filled → change city → submit → thank-you; dashboard shows new city + "updated" status; reload token URL → generic invalid page (single-use). Commit.
 
+**As built (deviations):**
+- Widget component is `src/components/turnstile-widget.tsx` (not `turnstile.tsx`); form lives in `src/app/u/[token]/token-update-form.tsx`; shared invalid/too-many/thanks card + the generic copy live in `src/app/u/notice.tsx`; success redirects to a static `src/app/u/thanks/page.tsx`.
+- Action order is shape-check → rate limit (`token-submit`, 10/h) → Turnstile → Zod → `apply_token_update` (rate limit and Turnstile run BEFORE Zod, unlike the sketch above, so validation noise can't bypass metering). Page order is shape-check FIRST (malformed tokens cost zero DB work, verified via `private.rate_limits`), then `token-view` 30/h, then lookup.
+- `verifyTurnstile` hardened beyond the sketch: fails closed on missing secret, empty/oversized response, non-2xx, malformed body, and network throw; never logs the response. `check_rate_limit` is wrapped in `src/lib/db/rate-limit.ts` (fail closed on throw).
+- Turnstile responses are single-use, so the form resets the widget after any error state (`useTurnstileResetOnError`) — otherwise every retry after a validation error would fail verification.
+- Disabled optional fields are blanked server-side before props cross to the client (RSC payload would otherwise leak their stored values — see `docs/bugs/2026-07-11-rsc-props-leak-disabled-token-fields.md`).
+- A >64KB payload can't reach `apply_token_update` through the action (Zod max-lengths cap every field first; e2e-verified: oversized submit → error, token unconsumed). The DB-side 64KB/non-object guard was exercised directly against the function.
+
 ---
 
 ## Task 14: Public permalink `/b/[slug]`

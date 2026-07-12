@@ -53,3 +53,29 @@ export type ContactField = (typeof CONTACT_FIELDS)[number];
 
 /** Raw form values (all strings), echoed back through action state. */
 export type ContactFormValues = Record<ContactField, string>;
+
+/**
+ * Recipient-editable fields (/u/[token]): everything except `notes`, which
+ * is the owner's private field — recipients must never read or write it.
+ */
+export const TOKEN_UPDATE_FIELDS = [
+  "full_name",
+  "partner_name",
+  "kids_names",
+  "email",
+  "birthday",
+  "address_line1",
+  "address_line2",
+  "city",
+  "state_region",
+  "postal_code",
+  "country",
+] as const satisfies readonly ContactField[];
+
+export type TokenUpdateField = (typeof TOKEN_UPDATE_FIELDS)[number];
+
+/** contactSchema minus notes; unknown keys (incl. a smuggled `notes`) are stripped. */
+export const tokenUpdateSchema = contactSchema.omit({ notes: true });
+
+/** Raw token-form values (all strings), echoed back through action state. */
+export type TokenUpdateValues = Record<TokenUpdateField, string>;

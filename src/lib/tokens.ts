@@ -11,6 +11,13 @@ import { createHash, randomBytes } from "node:crypto";
 /** Days a freshly minted update token stays valid. */
 export const TOKEN_TTL_DAYS = 30;
 
+/**
+ * Exact shape of a raw token (32 bytes → 43 chars unpadded base64url).
+ * The /u/[token] surface gates on this BEFORE any DB work: malformed input
+ * must never cost a query.
+ */
+export const TOKEN_SHAPE = /^[A-Za-z0-9_-]{43}$/;
+
 /** sha256 of the raw token — the only form that is ever persisted. */
 export function hashToken(token: string): Buffer {
   return createHash("sha256").update(token).digest();

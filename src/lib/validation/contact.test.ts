@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { contactSchema } from "./contact";
+import {
+  contactSchema,
+  TOKEN_UPDATE_FIELDS,
+  tokenUpdateSchema,
+} from "./contact";
 
 /** Minimal valid input; spread overrides per test. */
 const base = { full_name: "Ada Lovelace" };
@@ -113,5 +117,54 @@ describe("contactSchema", () => {
     for (const birthday of ["2025-99-99", "2025-13-01", "2025-02-30", "0000-00-00"]) {
       expect(contactSchema.safeParse({ ...base, birthday }).success).toBe(false);
     }
+  });
+});
+
+describe("tokenUpdateSchema", () => {
+  it("accepts the same core fields as contactSchema", () => {
+    const result = tokenUpdateSchema.safeParse({
+      full_name: "Ada Lovelace",
+      email: "ada@example.com",
+      birthday: "1815-12-10",
+      city: "London",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("strips a smuggled notes key (recipients can never write notes)", () => {
+    const result = tokenUpdateSchema.parse({
+      ...base,
+      notes: "recipient-injected",
+    });
+    expect(result).not.toHaveProperty("notes");
+  });
+
+  it("still enforces field validation (bad email rejected)", () => {
+    expect(
+      tokenUpdateSchema.safeParse({ ...base, email: "not-an-email" }).success,
+    ).toBe(false);
+  });
+
+  it("requires full_name like the parent schema", () => {
+    expect(tokenUpdateSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("TOKEN_UPDATE_FIELDS", () => {
+  it("is CONTACT_FIELDS minus notes, in display order", () => {
+    expect(TOKEN_UPDATE_FIELDS).toEqual([
+      "full_name",
+      "partner_name",
+      "kids_names",
+      "email",
+      "birthday",
+      "address_line1",
+      "address_line2",
+      "city",
+      "state_region",
+      "postal_code",
+      "country",
+    ]);
+    expect(TOKEN_UPDATE_FIELDS).not.toContain("notes");
   });
 });

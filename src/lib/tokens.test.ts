@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { generateToken, hashToken, TOKEN_TTL_DAYS } from "./tokens";
+import { generateToken, hashToken, TOKEN_SHAPE, TOKEN_TTL_DAYS } from "./tokens";
 
 describe("generateToken", () => {
   it("returns a 43-char base64url token (32 random bytes)", () => {
@@ -39,6 +39,25 @@ describe("hashToken", () => {
 
   it("differs for different inputs", () => {
     expect(hashToken("abc").equals(hashToken("abd"))).toBe(false);
+  });
+});
+
+describe("TOKEN_SHAPE", () => {
+  it("matches every generated token", () => {
+    for (let i = 0; i < 100; i++) {
+      expect(TOKEN_SHAPE.test(generateToken().token)).toBe(true);
+    }
+  });
+
+  it("rejects malformed candidates", () => {
+    const valid = generateToken().token;
+    expect(TOKEN_SHAPE.test("")).toBe(false);
+    expect(TOKEN_SHAPE.test("abc")).toBe(false);
+    expect(TOKEN_SHAPE.test(valid.slice(0, 42))).toBe(false); // too short
+    expect(TOKEN_SHAPE.test(`${valid}a`)).toBe(false); // too long
+    expect(TOKEN_SHAPE.test(`${valid.slice(0, 42)}+`)).toBe(false); // non-base64url char
+    expect(TOKEN_SHAPE.test(`${valid.slice(0, 42)}=`)).toBe(false); // padding
+    expect(TOKEN_SHAPE.test(`${valid}\n${valid}`)).toBe(false); // multiline smuggle
   });
 });
 
