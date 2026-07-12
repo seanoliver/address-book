@@ -1329,13 +1329,13 @@ export type ContactInput = z.infer<typeof contactSchema>;
 **Files:**
 - Create: `src/lib/csv/export.ts` (+ `.test.ts`), `src/app/dashboard/export/route.ts`
 
-**Step 1: Failing tests** for `contactsToCsv(rows)`: canonical header order, RFC-4180 quoting (commas/quotes/newlines in values), empty fields as empty strings, CRLF line endings.
+**Step 1: Failing tests** for `contactsToCsv(rows)`: canonical header order (= `CONTACT_FIELDS`, so export → import round-trips), RFC-4180 quoting (commas/quotes/newlines in values), empty fields as empty strings, CRLF line endings, and formula-injection protection — cells starting with `=` `+` `-` `@` tab or CR get a neutralizing leading `'` (OWASP CSV-injection guidance; a contact who sets their name to `=HYPERLINK(...)` via the token form must not become an exploit when the export opens in Excel/Numbers). Tradeoff: the `'` survives re-import — asserted explicitly in the round-trip tests.
 
-**Step 2–3: Implement (hand-rolled ~20 lines or Papaparse `unparse`), green, commit.**
+**Step 2–3: Implement (hand-rolled, pure — no server-only imports, mirroring import.ts), green, commit.**
 
-**Step 4: Route handler** (GET): `requireUser` → `withRls` select all contacts → `contactsToCsv` → `Response` with `Content-Type: text/csv` and `Content-Disposition: attachment; filename="address-book.csv"`. Add Export button on dashboard.
+**Step 4: Route handler** (GET): `requireUser` (unauthenticated → redirect to /login; `redirect()` works in route handlers) → `withRls` select all 12 fields ordered by full_name → `contactsToCsv` → `Response` with `Content-Type: text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="address-book.csv"`, `Cache-Control: no-store`, and a UTF-8 BOM prefix so Excel decodes accented names (parseContactsCsv strips it on re-import). Add Export button on dashboard (plain `<a download>`).
 
-**Step 5: Manual verify download opens in Numbers/Excel. Commit.**
+**Step 5: E2E verify** (curl with session cookies): headers, CRLF, quoted comma field, formula cell prefixed with `'`, round-trip through `parseContactsCsv`, unauthenticated redirect, and cross-user isolation (second user exports only their own contacts). Commit.
 
 ---
 

@@ -66,6 +66,14 @@ export default async function DashboardPage({
           {book.title}
         </h1>
         <div className="flex items-center gap-2">
+          {/* Route handler streams the CSV; plain <a> so the browser downloads it. */}
+          <a
+            href="/dashboard/export"
+            download
+            className="inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          >
+            Export CSV
+          </a>
           {/* route lands in Task 10 */}
           <Link
             href="/dashboard/import"
