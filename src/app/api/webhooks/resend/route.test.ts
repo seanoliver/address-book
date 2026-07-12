@@ -97,13 +97,34 @@ describe("POST /api/webhooks/resend", () => {
     expect((await sendRow()).status).toBe("sent");
   });
 
-  it("rejects missing svix headers with 401", async () => {
+  it("rejects missing svix headers with 401 via the explicit guard", async () => {
     const payload = eventPayload("email.delivered");
     const partial = signedHeaders(payload);
     delete partial["svix-signature"];
-    expect((await post(payload, partial)).status).toBe(401);
+    const res = await post(payload, partial);
+    expect(res.status).toBe(401);
+    // Pin the explicit guard's body — svix's internal rejection says
+    // "invalid signature"; this must be OUR early return, not that.
+    expect(await res.text()).toBe("missing signature headers");
     expect((await post(payload, {})).status).toBe(401);
     expect((await sendRow()).status).toBe("sent");
+  });
+
+  it("rejects oversized bodies with 413 before any signature work", async () => {
+    const big = JSON.stringify({
+      type: "email.delivered",
+      data: { email_id: RESEND_ID, junk: "x".repeat(70 * 1024) },
+    });
+    const res = await post(big, signedHeaders(big));
+    expect(res.status).toBe(413);
+    expect((await sendRow()).status).toBe("sent");
+    // Declared-length path: small body, lying oversized header
+    const payload = eventPayload("email.delivered");
+    const res2 = await post(payload, {
+      ...signedHeaders(payload),
+      "content-length": String(10 * 1024 * 1024),
+    });
+    expect(res2.status).toBe(413);
   });
 
   it("returns 500 (not a silent 200) when the secret is unconfigured", async () => {

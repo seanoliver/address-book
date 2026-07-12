@@ -47,8 +47,21 @@ const ResendEvent = z.object({
 
 export async function POST(req: Request) {
   try {
+    // Size guard: Resend events are ~1KB; self-hosted deployments have no
+    // platform body cap, so never HMAC megabytes of unauthenticated input.
+    // Declared length is checked before buffering; actual length after
+    // (covers chunked bodies and lying Content-Length headers).
+    const MAX_BODY_BYTES = 64 * 1024;
+    const declared = Number(req.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+      return new Response("payload too large", { status: 413 });
+    }
+
     // Raw body FIRST, before any parsing — svix verifies the exact bytes.
     const payload = await req.text();
+    if (payload.length > MAX_BODY_BYTES) {
+      return new Response("payload too large", { status: 413 });
+    }
 
     const secret = process.env.RESEND_WEBHOOK_SECRET;
     if (!secret) {

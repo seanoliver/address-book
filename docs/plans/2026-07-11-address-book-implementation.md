@@ -1494,9 +1494,12 @@ Note `submissions_update_own_book` policy allows the status change and RLS scope
 
 **Step 1: Route** (POST) — as built, hardened beyond the original sketch:
 no non-null assertions (missing secret → 500 with a server log; missing
-svix-* headers → 401), zod validation of the verified payload (signed but
-malformed → 200 + log, so Resend schema drift can't cause retry storms),
-and a per-status precedence guard instead of the single
+svix-* headers → 401), a 64KB body-size guard (declared Content-Length
+checked before buffering, actual length after; both → 413 — self-hosted
+deployments have no platform body cap, and unauthenticated input must
+never be HMAC'd at megabyte scale), zod validation of the verified payload
+(signed but malformed → 200 + log, so Resend schema drift can't cause
+retry storms), and a per-status precedence guard instead of the single
 `not in ('bounced','complained')` predicate — a late `email.delivered`
 retry must not regress `opened`:
 
