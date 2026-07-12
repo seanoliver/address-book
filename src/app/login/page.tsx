@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 
 const emailSchema = z.object({ email: z.email().max(254) });
@@ -79,12 +80,12 @@ export default async function LoginPage({
                 placeholder="you@example.com"
                 className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               />
-              <button
-                type="submit"
+              <SubmitButton
+                pendingLabel="Sending…"
                 className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
               >
                 Send magic link
-              </button>
+              </SubmitButton>
             </form>
 
             <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wide text-zinc-400">
@@ -94,12 +95,12 @@ export default async function LoginPage({
             </div>
 
             <form action={signInWithGoogle}>
-              <button
-                type="submit"
+              <SubmitButton
+                pendingLabel="Redirecting…"
                 className="h-10 w-full rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
               >
                 Sign in with Google
-              </button>
+              </SubmitButton>
             </form>
           </>
         )}

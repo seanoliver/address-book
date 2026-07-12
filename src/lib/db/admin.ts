@@ -1,10 +1,16 @@
 import "server-only";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { assertServerEnv } from "@/lib/env";
 import * as schema from "./schema";
 
-// Explicit guard: postgres.js silently falls back to localhost:5432 when the
-// connection string is undefined — fail loudly instead.
+// Single choke point: every server path that touches data imports this
+// module (directly or via withRls), so a deployment missing required env
+// vars fails at first touch with a clear list instead of deep in a request.
+assertServerEnv();
+
+// Explicit guard (and type narrowing): postgres.js silently falls back to
+// localhost:5432 when the connection string is undefined — fail loudly.
 const url = process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL is not set");
 

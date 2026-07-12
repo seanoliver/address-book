@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Address Book
 
-## Getting Started
+An open-source, self-hostable address book for people who mail things to people — holiday cards being the canonical use case.
 
-First, run the development server:
+You keep a list of contacts. Each year (or whenever), you email everyone a unique, expiring link where they confirm or update **their own** address — no account needed on their end. You also get a shareable permalink where people can add themselves to your book, write-only: visitors can never see what's in it. When it's time to print labels, export everything as CSV.
+
+Security is the top design priority: this app stores home addresses, and leaking them is the failure mode the architecture is built around. Read [docs/SECURITY.md](docs/SECURITY.md) for the full security model.
+
+## Features
+
+- **Contact list** with partner names, kids' names, birthdays, and international-friendly structured addresses
+- **"Request addresses" in bulk** — each contact gets a personal, single-use link (30-day expiry) to update their own info
+- **Send-status tracking** — per-contact chips (sent / delivered / opened / bounced / updated) driven by signed Resend webhooks
+- **Public permalink** (`/b/your-slug`) — a write-only self-add form; submissions land in a review queue where you approve, merge, or reject
+- **Review queue with merge** — self-adds that match an existing contact's email surface as "possible update" with a side-by-side diff
+- **CSV import** (header-alias tolerant, previewed in the browser) and **CSV export** (RFC 4180, formula-injection safe, round-trips through import)
+- **Audit trail** per contact — every owner edit, token update, and approved submission is recorded
+- **Passwordless auth** — magic link or Google, via Supabase Auth
+- Configurable optional fields per book (partner name, kids' names, birthday)
+
+## Screenshots
+
+_Coming soon._
+
+## Local development
+
+Prereqs: [Node.js](https://nodejs.org) ≥ 20.12, [pnpm](https://pnpm.io) (`corepack enable`), and [Docker](https://docs.docker.com/get-docker/) (for the local Supabase stack).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm supabase start          # boots local Postgres/Auth/Mailpit; prints keys
+cp .env.local.example .env.local
+# paste the anon key printed by `supabase start` into NEXT_PUBLIC_SUPABASE_ANON_KEY
+pnpm dev                     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Magic-link emails land in the local Mailpit UI at http://127.0.0.1:54324. With `EMAIL_DRY_RUN=1` (the default in the example env), address-request emails are not sent — the tokenized links are printed to the dev-server console instead.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm test      # Vitest unit + integration (needs `supabase start` running)
+pnpm test:db   # pgTAP suite: RLS policies, grants, SECURITY DEFINER functions
+pnpm e2e       # Playwright happy paths (starts/reuses the dev server)
+```
 
-## Learn More
+## Environment variables
 
-To learn more about Next.js, take a look at the following resources:
+All of these live in `.env.local` (gitignored). See [.env.local.example](.env.local.example) for local-dev defaults.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL. Used for **auth only** — the browser never touches Supabase data APIs. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon (publishable) key. Auth only, same as above. |
+| `DATABASE_URL` | Direct Postgres connection for Drizzle (server only, never exposed to the client). In production: the transaction pooler on port 6543 with `sslmode=require`. |
+| `RESEND_API_KEY` | [Resend](https://resend.com) API key for sending address-request emails. |
+| `RESEND_WEBHOOK_SECRET` | Signing secret (svix, `whsec_…`) for verifying `/api/webhooks/resend` events. |
+| `EMAIL_FROM` | From header for outgoing email, e.g. `"Address Book <addresses@example.com>"`. Must be a domain verified in Resend. |
+| `EMAIL_DRY_RUN` | Set to `1` to log tokenized links to the console instead of sending email. **Dev only** — ignored when `NODE_ENV=production`; must be unset in real deployments. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key. The example value is Cloudflare's public always-pass test key. |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key. The example value is Cloudflare's public always-pass test key. |
+| `APP_URL` | Canonical base URL of the deployment — used to build the links in outgoing emails. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Required vars are asserted at server startup (`src/lib/env.ts`); a misconfigured deployment fails loudly with the list of missing names.
 
-## Deploy on Vercel
+## Deploying
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The reference deployment is **Vercel + hosted Supabase + Resend + Cloudflare Turnstile**:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Create a [Supabase](https://supabase.com) project and push the schema: `supabase link --project-ref <ref> && supabase db push`.
+2. **Work through the [production checklist in docs/SECURITY.md](docs/SECURITY.md#production-checklist)** — most importantly: remove all exposed schemas from the Data API, and use the transaction-pooler `DATABASE_URL` (port 6543, `sslmode=require`).
+3. Create a [Resend](https://resend.com) account, verify your sending domain (SPF/DKIM), and add a webhook endpoint pointing at `https://<your-app>/api/webhooks/resend`.
+4. Create a [Cloudflare Turnstile](https://www.cloudflare.com/application-services/products/turnstile/) widget for your domain (the test keys in the example env pass every challenge — never ship them).
+5. Deploy to [Vercel](https://vercel.com): import the repo, set every variable from the table above (marked **Sensitive**), and deploy.
+6. Set the Supabase Auth **Site URL** to your `APP_URL` and configure the magic-link email template to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (see `supabase/templates/magic_link.html`).
+
+## Contributing
+
+Issues and PRs welcome. Before opening a PR, run the full gate locally:
+
+```bash
+pnpm lint && pnpm exec tsc --noEmit && pnpm test && pnpm test:db && pnpm build && pnpm e2e
+```
+
+New tables must ship with RLS policies and pgTAP coverage — the test suite fails otherwise (by design; see [docs/SECURITY.md](docs/SECURITY.md)). To report a security issue, **do not open a public issue** — see the [vulnerability reporting section](docs/SECURITY.md#reporting-a-vulnerability).
+
+## License
+
+[MIT](LICENSE)

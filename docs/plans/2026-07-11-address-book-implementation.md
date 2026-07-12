@@ -1646,6 +1646,15 @@ bounced and watched the dashboard chip move Sent → Delivered → Opened →
 
 **Step 5: Commit.** Tag `v0.1.0`.
 
+**As built (deviations):**
+- Files beyond the plan list: `LICENSE` (MIT), `src/lib/env.ts`, `src/components/submit-button.tsx`, plus edits to `next.config.ts`, `playwright.config.ts`, `package.json`, `src/lib/db/admin.ts`, `src/app/login/page.tsx`.
+- `src/lib/env.ts` (`assertServerEnv`): presence checks for APP_URL, DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, plus RESEND_API_KEY/EMAIL_FROM only when the email dry-run predicate is off (mirrors `isEmailDryRun`, duplicated two lines to stay dependency-free). Called once at `src/lib/db/admin.ts` module init — the single choke point every server data path imports. Throws with the full list of missing names.
+- Login pending states via a shared `SubmitButton` client component (`useFormStatus`; disabled + aria-busy + label swap) — the login page stays a server component. Labels: "Sending…" (magic link) / "Redirecting…" (Google).
+- `next.config.ts` gained the deferred `headers()` entry: `/u/:path*` → `X-Robots-Tag: noindex, nofollow` (complements the per-page robots metadata).
+- `docs/SECURITY.md` written from the code, not the plan: two-walls architecture, definer functions + EXECUTE revocation, grants/TRUNCATE story, token design (32B CSPRNG, sha256-at-rest, 30d TTL, single-use, single-active, shape-gate), enumeration-proofing, all five rate limits, Turnstile fail-closed, size caps, CSV formula-injection guard, PII-safe logging, webhook verification/precedence/body cap, production checklist (incl. pg_cron sweep, EMAIL_DRY_RUN unset, enable_confirmations note; minimum_password_length N/A — passwordless), vulnerability reporting (email), and links to every bug journal/investigation as design-decision records. `docs/SECURITY.md` is a location GitHub's security-policy convention picks up.
+- CI is five jobs, not three: lint (ESLint CLI + `tsc --noEmit`), unit (supabase/setup-cli → `supabase start` → .env.local built from `.env.local.example` + `supabase status -o env` values → vitest), db (`supabase test db`), build (stub .env.local from the example; no stack — nothing queries at build time), e2e (playwright chromium + full stack). pnpm pinned via the new `"packageManager": "pnpm@10.25.0"` field (pnpm/action-setup reads it); Node 22 everywhere (`process.loadEnvFile` needs ≥ 20.12). `playwright.config.ts` now sets `reuseExistingServer: !process.env.CI`. Workflow validated with PyYAML + js-yaml (GitHub CI itself not runnable locally); the build job's stub-env path was exercised locally (`cp .env.local.example .env.local && pnpm build`).
+- Final gate extended beyond the plan's Step 4: `pnpm lint && pnpm exec tsc --noEmit && pnpm test && pnpm test:db && pnpm build && pnpm e2e`.
+
 ---
 
 ## Deferred (explicitly NOT in this plan)

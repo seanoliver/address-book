@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint & typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version pinned via package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # process.loadEnvFile (playwright.config.ts) needs >= 20.12
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # `next lint` was removed in Next 16 — run the ESLint CLI directly.
+      - run: pnpm lint
+      - run: pnpm exec tsc --noEmit
+
+  unit:
+    name: Unit & integration (vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - run: supabase start
+      - name: Create .env.local from the local stack
+        run: |
+          eval "$(supabase status -o env)"
+          cp .env.local.example .env.local
+          sed -i "s|^NEXT_PUBLIC_SUPABASE_URL=.*|NEXT_PUBLIC_SUPABASE_URL=$API_URL|" .env.local
+          sed -i "s|^NEXT_PUBLIC_SUPABASE_ANON_KEY=.*|NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY|" .env.local
+          sed -i "s|^DATABASE_URL=.*|DATABASE_URL=$DB_URL|" .env.local
+      - run: pnpm test
+
+  db:
+    name: Database (pgTAP)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start
+      - run: supabase test db
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The example env satisfies src/lib/env.ts; no page queries the DB at
+      # build time (postgres.js connects lazily), so no stack is needed.
+      - run: cp .env.local.example .env.local
+      - run: pnpm build
+
+  e2e:
+    name: E2E (playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: supabase start
+      - name: Create .env.local from the local stack
+        run: |
+          eval "$(supabase status -o env)"
+          cp .env.local.example .env.local
+          sed -i "s|^NEXT_PUBLIC_SUPABASE_URL=.*|NEXT_PUBLIC_SUPABASE_URL=$API_URL|" .env.local
+          sed -i "s|^NEXT_PUBLIC_SUPABASE_ANON_KEY=.*|NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY|" .env.local
+          sed -i "s|^DATABASE_URL=.*|DATABASE_URL=$DB_URL|" .env.local
+      # reuseExistingServer is disabled under CI (playwright.config.ts), so
+      # playwright boots `pnpm dev` itself and waits for :3000.
+      - run: pnpm e2e
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
