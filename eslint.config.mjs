@@ -32,6 +32,11 @@ const eslintConfig = defineConfig([
       "src/app/u/**",
       "src/app/b/**",
       "src/app/dashboard/actions.ts",
+      // Sanctioned: contact CRUD writes go through withRls; dbAdmin is used
+      // ONLY to append contact_events audit rows after a successful RLS
+      // write (contact_events is client-unwritable by design — no insert
+      // policy or grant for `authenticated`).
+      "src/app/dashboard/contacts/actions.ts",
     ],
     rules: { "no-restricted-imports": "off" },
   },

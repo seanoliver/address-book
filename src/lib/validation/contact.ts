@@ -20,3 +20,24 @@ export const contactSchema = z.object({
   notes: opt(2000),
 });
 export type ContactInput = z.infer<typeof contactSchema>;
+
+/** Form field names in display order; shared by the form, actions, and diffs. */
+export const CONTACT_FIELDS = [
+  "full_name",
+  "partner_name",
+  "kids_names",
+  "email",
+  "birthday",
+  "address_line1",
+  "address_line2",
+  "city",
+  "state_region",
+  "postal_code",
+  "country",
+  "notes",
+] as const;
+
+export type ContactField = (typeof CONTACT_FIELDS)[number];
+
+/** Raw form values (all strings), echoed back through action state. */
+export type ContactFormValues = Record<ContactField, string>;

@@ -251,6 +251,7 @@ create table public.email_sends (
   last_event_at timestamptz
 );
 create index email_sends_contact_idx on public.email_sends (contact_id);
+create index email_sends_book_idx on public.email_sends (book_id);
 alter table public.email_sends enable row level security;
 
 create policy "email_sends_select_own_book" on public.email_sends
@@ -266,6 +267,7 @@ create table public.contact_events (
   diff jsonb not null check (pg_column_size(diff) <= 131072),
   created_at timestamptz not null default now()
 );
+create index contact_events_contact_created_idx on public.contact_events (contact_id, created_at desc);
 alter table public.contact_events enable row level security;
 
 create policy "contact_events_select_own" on public.contact_events
@@ -1297,7 +1299,7 @@ export const contactSchema = z.object({
 export type ContactInput = z.infer<typeof contactSchema>;
 ```
 
-**Step 4: Actions** (`createContact`, `updateContact`, `deleteContact`): `requireUser` → parse → `withRls` write scoped to own book (resolve `bookId` inside the same RLS tx — never trust a client-posted bookId) → insert `contact_events` row with `source: 'owner'` via the same tx (needs an insert policy? No — write audit via `dbAdmin` after the RLS write succeeds; keep `contact_events` client-unwritable) → `revalidatePath`.
+**Step 4: Actions** (`createContact`, `updateContact`, `deleteContact`): `requireUser` → parse → `withRls` write scoped to own book (resolve `bookId` inside the same RLS tx — never trust a client-posted bookId) → insert `contact_events` row with `source: 'owner'` via the same tx (needs an insert policy? No — write audit via `dbAdmin` after the RLS write succeeds; keep `contact_events` client-unwritable) → `revalidatePath`. Creates log `{after}`, updates log `{before, after}` (changed fields only); deletes log nothing — `contact_events.contact_id` is `on delete cascade`, so a delete-audit row would either violate the FK (inserted after) or be cascade-removed with the contact (inserted before). The trail lives and dies with the contact.
 
 **Step 5: `ContactForm` component** (client): all fields, used by new + edit pages; edit page also shows audit trail (`contact_events` via RLS select) and a delete button with confirm.
 

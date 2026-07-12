@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { type SessionClaims } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { books, contactEvents, contacts, emailSends } from "@/lib/db/schema";
@@ -125,5 +125,40 @@ export async function listContacts(
       ...row,
       sendStatus: toSendStatus(row.sendStatus),
     }));
+  });
+}
+
+export type ContactDetail = {
+  contact: typeof contacts.$inferSelect;
+  events: (typeof contactEvents.$inferSelect)[];
+};
+
+/**
+ * A single contact plus its audit trail (newest first), or undefined when the
+ * id doesn't exist or belongs to another user's book — RLS scopes both
+ * selects to the caller's own book, so foreign ids are indistinguishable
+ * from missing ones. `id` must be a validated UUID (an arbitrary string
+ * would throw on the uuid cast).
+ */
+export async function getContactWithEvents(
+  claims: SessionClaims,
+  id: string,
+): Promise<ContactDetail | undefined> {
+  return withRls(claims, async (tx) => {
+    const [contact] = await tx
+      .select()
+      .from(contacts)
+      .where(eq(contacts.id, id))
+      .limit(1);
+    if (!contact) return undefined;
+
+    const events = await tx
+      .select()
+      .from(contactEvents)
+      .where(eq(contactEvents.contactId, id))
+      .orderBy(desc(contactEvents.createdAt), desc(contactEvents.id))
+      .limit(100);
+
+    return { contact, events };
   });
 }

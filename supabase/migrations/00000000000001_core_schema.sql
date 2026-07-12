@@ -144,6 +144,7 @@ create table public.email_sends (
   last_event_at timestamptz
 );
 create index email_sends_contact_idx on public.email_sends (contact_id);
+create index email_sends_book_idx on public.email_sends (book_id);
 alter table public.email_sends enable row level security;
 
 create policy "email_sends_select_own_book" on public.email_sends
@@ -159,6 +160,7 @@ create table public.contact_events (
   diff jsonb not null check (pg_column_size(diff) <= 131072),
   created_at timestamptz not null default now()
 );
+create index contact_events_contact_created_idx on public.contact_events (contact_id, created_at desc);
 alter table public.contact_events enable row level security;
 
 create policy "contact_events_select_own" on public.contact_events
