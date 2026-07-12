@@ -1614,6 +1614,15 @@ bounced and watched the dashboard chip move Sent → Delivered → Opened →
 
 **Step 3: Run** `pnpm exec playwright test` → 3 specs green. Add `"e2e": "playwright test"` script. Commit.
 
+**As built (deviations):**
+- Four specs, not three: `e2e/webhook-chips.spec.ts` was added to make Task 16's hand-driven chip e2e (signed svix events → Sent → Delivered → Opened → late-delivered no-regress) a committed regression test. 20 tests total, ~13s wall clock across 4 workers, run twice green back-to-back.
+- Helpers are split in two: `e2e/helpers.ts` (UI: `signupAndLogin` via the real /login form + Mailpit REST — `/api/v1/search?query=to:<email>` then `/api/v1/message/<id>`, `createBook` via the real settings form, `waitForTurnstile`) and `e2e/db.ts` (a standalone postgres.js client for seeding/cleanup — `src/lib/db/admin` is unimportable from the test runner because it imports `server-only`, so the token-mint logic from `src/lib/tokens.ts` is mirrored there; keep in sync).
+- The token spec seeds the token directly via the DB (the plan said "via dbAdmin in the spec" — same idea, different module for the server-only reason above). The dry-run `/u/` URL printed to the dev-server console is not reachable from Playwright, so `requestAddresses` fan-out stays covered by Task 14's verification, not e2e.
+- Specs are fully self-contained: unique-per-run emails/slugs (timestamp + random), `afterAll` deletes the spec's auth user (`auth.users` cascade removes book/contacts/tokens/sends/events/submissions), and the token/permalink specs call `clearRateLimits()` in `beforeAll` so back-to-back runs never inherit a spent IP budget (permalink submits are 5/hour/IP).
+- `playwright.config.ts` loads `.env.local` via `process.loadEnvFile` (test process needs `DATABASE_URL` + `RESEND_WEBHOOK_SECRET`; the dev server loads it itself). Single chromium project, retries 0, 30s/test, `webServer: pnpm dev` with `reuseExistingServer: true`.
+- Supabase's local `[auth.rate_limit] email_sent = 2` is NOT enforced by the local stack (probed with 12 back-to-back OTP requests, all 200), so real magic-link signups per spec are safe with no config change.
+- Vitest already only matches `src/**/*.test.ts` and e2e files are `*.spec.ts` — no vitest config change needed. The root tsconfig's `**/*.ts` include already typechecks `e2e/` and `playwright.config.ts`.
+
 ---
 
 ## Task 18: README, security docs, production checklist
