@@ -678,7 +678,9 @@ begin
 
   select id into v_match from public.contacts
   where book_id = v_book_id
-    and email = nullif(trim(p_payload ->> 'email'), '')::extensions.citext;
+    -- operator(extensions.=): with search_path='', bare = degrades to
+    -- case-sensitive text equality via implicit cast; citext ops live in extensions
+    and email operator(extensions.=) nullif(trim(p_payload ->> 'email'), '')::extensions.citext;
 
   insert into public.submissions (book_id, payload, matched_contact_id)
   values (v_book_id, p_payload, v_match);
