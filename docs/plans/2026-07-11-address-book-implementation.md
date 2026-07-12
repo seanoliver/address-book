@@ -324,7 +324,7 @@ git add supabase/ && git commit -m "feat: core schema with default-deny RLS"
 begin;
 create schema if not exists tests;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(23);
 
 -- fixtures: two users, two books, one contact each
 insert into auth.users (id, email) values
@@ -341,6 +341,15 @@ insert into public.contacts (id, book_id, full_name, email) values
 
 insert into public.update_tokens (contact_id, token_hash, expires_at) values
   ('20000000-0000-0000-0000-000000000001', '\xdeadbeef', now() + interval '30 days');
+
+-- read-only-table fixtures (inserted as postgres, bypassing RLS): one
+-- email_send, one contact_event, one pending submission — all owner1's
+insert into public.email_sends (contact_id, book_id) values
+  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001');
+insert into public.contact_events (contact_id, source, diff) values
+  ('20000000-0000-0000-0000-000000000001', 'owner', '{}');
+insert into public.submissions (book_id, payload) values
+  ('10000000-0000-0000-0000-000000000001', '{"full_name": "Pending P"}');
 
 -- helper to impersonate
 create or replace function tests.authenticate_as(uid text) returns void language plpgsql as $$
@@ -374,6 +383,40 @@ select ok(
   and not has_table_privilege('anon', 'public.update_tokens', 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'),
   'update_tokens grants nothing to client roles');
 
+-- 4. structural guardrail: client-role grants match the migration's grants
+-- block EXACTLY. A future stray grant (or a dropped one) shows up as a
+-- named "unexpected:"/"missing:" row in the failure output.
+select is_empty(
+  $$ with actual (tbl, rol, priv) as (
+       select c.relname::text, r.rolname::text, a.privilege_type::text
+       from pg_class c
+       cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+       join pg_roles r on r.oid = a.grantee
+       where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+         and r.rolname in ('anon', 'authenticated')),
+     expected (tbl, rol, priv) as (values
+       ('profiles',       'authenticated', 'SELECT'),
+       ('profiles',       'authenticated', 'UPDATE'),
+       ('books',          'authenticated', 'SELECT'),
+       ('books',          'authenticated', 'INSERT'),
+       ('books',          'authenticated', 'UPDATE'),
+       ('books',          'authenticated', 'DELETE'),
+       ('contacts',       'authenticated', 'SELECT'),
+       ('contacts',       'authenticated', 'INSERT'),
+       ('contacts',       'authenticated', 'UPDATE'),
+       ('contacts',       'authenticated', 'DELETE'),
+       ('submissions',    'authenticated', 'SELECT'),
+       ('submissions',    'authenticated', 'UPDATE'),
+       ('submissions',    'authenticated', 'DELETE'),
+       ('email_sends',    'authenticated', 'SELECT'),
+       ('contact_events', 'authenticated', 'SELECT'))
+     select 'unexpected: ' || tbl || ' ' || rol || ' ' || priv
+       from (select * from actual except select * from expected) u
+     union all
+     select 'missing: ' || tbl || ' ' || rol || ' ' || priv
+       from (select * from expected except select * from actual) m $$,
+  'client-role grants match the exact expected matrix');
+
 -- as owner1
 select tests.authenticate_as('00000000-0000-0000-0000-000000000001');
 select results_eq('select count(*) from public.contacts', array[1::bigint], 'owner1 sees exactly own contact');
@@ -383,6 +426,17 @@ select results_eq('select count(*) from public.books', array[1::bigint], 'owner1
 select throws_ok('select count(*) from public.update_tokens', '42501', null,
   'update_tokens not selectable even by owner');
 select results_eq('select count(*) from public.profiles', array[1::bigint], 'owner1 sees only own profile');
+select results_eq('select count(*) from public.email_sends', array[1::bigint], 'owner1 sees own email_send');
+select results_eq('select count(*) from public.contact_events', array[1::bigint], 'owner1 sees own contact_event');
+-- WITH CHECK probes: UPDATEs that pass USING but land rows outside the policy
+select throws_ok(
+  $$ update public.contacts set book_id = '10000000-0000-0000-0000-000000000002'
+     where id = '20000000-0000-0000-0000-000000000001' $$,
+  '42501', null, 'owner cannot move a contact into another owner''s book');
+select throws_ok(
+  $$ update public.books set owner_id = '00000000-0000-0000-0000-000000000002'
+     where id = '10000000-0000-0000-0000-000000000001' $$,
+  '42501', null, 'owner cannot give a book away');
 select throws_ok(
   $$ insert into public.contacts (book_id, full_name)
      values ('10000000-0000-0000-0000-000000000002', 'Sneaky') $$,
@@ -404,6 +458,16 @@ select is_empty(
   $$ update public.contacts set full_name = 'pwned'
      where id = '20000000-0000-0000-0000-000000000001' returning id $$,
   'owner2 cannot update owner1''s contact');
+select results_eq('select count(*) from public.email_sends', array[0::bigint], 'owner2 sees no email_sends of owner1');
+select results_eq('select count(*) from public.contact_events', array[0::bigint], 'owner2 sees no contact_events of owner1');
+select is_empty(
+  $$ update public.submissions set status = 'approved'
+     where book_id = '10000000-0000-0000-0000-000000000001' returning id $$,
+  'owner2 cannot approve owner1''s submissions');
+select is_empty(
+  $$ delete from public.submissions
+     where book_id = '10000000-0000-0000-0000-000000000001' returning id $$,
+  'owner2 cannot delete owner1''s submissions');
 
 -- as anon (anon holds zero grants, so even SELECT errors)
 reset role;
@@ -418,7 +482,7 @@ rollback;
 **Step 2: Run tests**
 
 Run: `pnpm supabase test db`
-Expected: 14/14 pass. If `authenticate_as` fixture or a policy is wrong, fix the migration (edit + `db reset`), not the assertions.
+Expected: 23/23 pass. If `authenticate_as` fixture or a policy is wrong, fix the migration (edit + `db reset`), not the assertions.
 
 **Step 3: Commit**
 
