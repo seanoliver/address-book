@@ -134,8 +134,10 @@ create policy "profiles_update_own" on public.profiles
 create or replace function private.handle_new_user()
 returns trigger language plpgsql security definer set search_path = '' as $$
 begin
+  -- left(): raw_user_meta_data is client-controlled; an over-long name must
+  -- not fail the profiles CHECK and abort the auth.users insert (breaks signup)
   insert into public.profiles (id, full_name)
-  values (new.id, coalesce(new.raw_user_meta_data ->> 'full_name', ''));
+  values (new.id, left(coalesce(new.raw_user_meta_data ->> 'full_name', ''), 200));
   return new;
 end $$;
 create trigger on_auth_user_created
@@ -272,10 +274,18 @@ create policy "contact_events_select_own" on public.contact_events
                  where c.id = contact_id and b.owner_id = (select auth.uid())));
 
 -- ── explicit least-privilege grants ─────────────────────────────────────
--- Current Supabase defaults no longer auto-expose new public tables to
--- client roles, so every privilege is granted explicitly. RLS policies
--- above then filter rows within these grants. anon gets NOTHING;
--- update_tokens gets NOTHING for any client-facing role.
+-- Two hazards handled here:
+-- 1. Current Supabase defaults no longer auto-expose new public tables
+--    (no SELECT/INSERT/UPDATE/DELETE), so DML must be granted explicitly.
+-- 2. Supabase's default ACLs DO still leave residual TRUNCATE/REFERENCES/
+--    TRIGGER/MAINTAIN for client roles — and RLS does not apply to
+--    TRUNCATE. Revoke everything (now and for future tables), then grant
+--    back exactly what the policies mediate. anon gets NOTHING;
+--    update_tokens gets NOTHING for any client-facing role.
+alter default privileges for role postgres in schema public
+  revoke all on tables from anon, authenticated;
+revoke all on all tables in schema public from anon, authenticated;
+
 grant usage on schema public to authenticated;
 grant select, update on public.profiles to authenticated;
 grant select, insert, update, delete on public.books to authenticated;
@@ -311,7 +321,7 @@ git add supabase/ && git commit -m "feat: core schema with default-deny RLS"
 ```sql
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(14);
 
 -- fixtures: two users, two books, one contact each
 insert into auth.users (id, email) values
@@ -341,6 +351,25 @@ end $$;
 select is_empty(
   $$ select tablename from pg_tables where schemaname = 'public' and rowsecurity = false $$,
   'every table in public has RLS enabled');
+
+-- 2. structural guardrail: no residual non-DML privileges for client roles.
+-- RLS does NOT apply to TRUNCATE; Supabase default ACLs historically leave
+-- TRUNCATE/REFERENCES/TRIGGER/MAINTAIN granted. Must be zero, always.
+select is_empty(
+  $$ select c.relname, a.privilege_type
+     from pg_class c
+     cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+     join pg_roles r on r.oid = a.grantee
+     where c.relnamespace = 'public'::regnamespace and c.relkind = 'r'
+       and r.rolname in ('anon', 'authenticated')
+       and a.privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER', 'MAINTAIN') $$,
+  'client roles hold no TRUNCATE/REFERENCES/TRIGGER/MAINTAIN on any public table');
+
+-- 3. update_tokens: zero privileges of any kind for client roles
+select ok(
+  not has_table_privilege('authenticated', 'public.update_tokens', 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+  and not has_table_privilege('anon', 'public.update_tokens', 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'),
+  'update_tokens grants nothing to client roles');
 
 -- as owner1
 select tests.authenticate_as('00000000-0000-0000-0000-000000000001');
