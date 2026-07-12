@@ -761,7 +761,8 @@ git add supabase/ && git commit -m "feat: security definer functions with pgTAP 
 ## Task 5: Drizzle schema + RLS transaction wrapper
 
 **Files:**
-- Create: `src/lib/db/schema.ts`, `src/lib/db/index.ts`, `src/lib/db/rls.test.ts`
+- Create: `src/lib/db/schema.ts`, `src/lib/db/admin.ts`, `src/lib/db/index.ts`, `src/lib/db/rls.test.ts`, `src/test/stubs/server-only.ts`
+- Modify: `vitest.config.ts`, `eslint.config.mjs`
 
 **Step 1: Handwrite Drizzle schema mirroring the migrations** (`src/lib/db/schema.ts`)
 
@@ -786,7 +787,7 @@ export const books = pgTable("books", {
   title: text("title").notNull(),
   enabledFields: jsonb("enabled_fields").notNull().$type<{
     partner_name: boolean; kids_names: boolean; birthday: boolean;
-  }>(),
+  }>().default({ partner_name: true, kids_names: true, birthday: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -846,58 +847,97 @@ export const contactEvents = pgTable("contact_events", {
 });
 ```
 
-**Step 2: Write the RLS wrapper** (`src/lib/db/index.ts`)
+**Step 2: Write the admin connection and the RLS wrapper**
+
+Both modules import `server-only` so any accidental client-bundle import fails the Next build. `dbAdmin` lives in its own module so a lint rule can restrict who may import it (Step 5).
+
+`src/lib/db/admin.ts`:
 
 ```ts
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { sql } from "drizzle-orm";
+import "server-only";
+import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-const client = postgres(process.env.DATABASE_URL!, { prepare: false, max: 10 });
+// Explicit guard: postgres.js silently falls back to localhost:5432 when the
+// connection string is undefined — fail loudly instead.
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error("DATABASE_URL is not set");
+
+const client = postgres(url, {
+  prepare: false,
+  max: 10,
+  // Serverless: warm instances must not hold connections forever.
+  idle_timeout: 20, // seconds
+  max_lifetime: 60 * 30, // seconds
+});
 
 /**
  * Admin connection — BYPASSES RLS (connection role owns the tables).
  * Allowed uses: calling private.* SECURITY DEFINER functions, minting
  * update_tokens, webhook status updates. NEVER use for owner-facing reads.
+ * Importing this module is lint-restricted to the sanctioned call sites
+ * (see no-restricted-imports in eslint.config.mjs) — owner-facing access
+ * goes through withRls in `@/lib/db`.
  */
 export const dbAdmin = drizzle(client, { schema });
+```
+
+`src/lib/db/index.ts` — `makeWithRls` is a factory over any drizzle instance (exported so tests can probe a dedicated max-1 pool); the app uses the `withRls` export bound to `dbAdmin`. The three setup statements collapse into one round trip — `set_config('role', ..., is_local => true)` is equivalent to `SET LOCAL ROLE`:
+
+```ts
+import "server-only";
+import { type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { sql } from "drizzle-orm";
+import * as schema from "./schema";
+import { dbAdmin } from "./admin";
 
 export type RlsTx = Parameters<Parameters<PostgresJsDatabase<typeof schema>["transaction"]>[0]>[0];
+
+/**
+ * Factory exported for tests (the suite probes a dedicated max-1 pool to
+ * prove nothing leaks onto the connection after commit). Application code
+ * uses the `withRls` export below.
+ */
+export function makeWithRls(db: PostgresJsDatabase<typeof schema>) {
+  return async function withRls<T>(
+    claims: { sub: string; [k: string]: unknown },
+    fn: (tx: RlsTx) => Promise<T>,
+  ): Promise<T> {
+    if (!claims.sub) {
+      throw new Error("withRls: claims.sub must be a non-empty user id");
+    }
+    return db.transaction(async (tx) => {
+      // Single round trip; set_config('role', ..., is_local => true) is
+      // equivalent to SET LOCAL ROLE.
+      await tx.execute(sql`
+        select set_config('request.jwt.claims', ${JSON.stringify({ ...claims, role: "authenticated" })}, true),
+               set_config('request.jwt.claim.sub', ${claims.sub}, true),
+               set_config('role', 'authenticated', true)`);
+      try {
+        return await fn(tx);
+      } finally {
+        // Belt-and-braces: set_config(..., is_local => true) is
+        // transaction-scoped, so COMMIT/ROLLBACK restores the role either
+        // way. If fn threw a Postgres error the tx is aborted and
+        // `reset role` itself fails (25P02) — swallow that so the original
+        // error propagates instead of being masked.
+        try {
+          await tx.execute(sql`reset role`);
+        } catch {
+          // aborted transaction; rollback will restore the role
+        }
+      }
+    });
+  };
+}
 
 /**
  * Runs `fn` inside a transaction with the user's JWT claims applied and
  * `role` dropped to `authenticated`, so every query inside is RLS-enforced.
  * This is the ONLY sanctioned path for owner-facing data access.
  */
-export async function withRls<T>(
-  claims: { sub: string; [k: string]: unknown },
-  fn: (tx: RlsTx) => Promise<T>,
-): Promise<T> {
-  if (!claims.sub) {
-    throw new Error("withRls: claims.sub must be a non-empty user id");
-  }
-  return dbAdmin.transaction(async (tx) => {
-    await tx.execute(sql`
-      select set_config('request.jwt.claims', ${JSON.stringify({ ...claims, role: "authenticated" })}, true)`);
-    await tx.execute(sql`
-      select set_config('request.jwt.claim.sub', ${claims.sub}, true)`);
-    await tx.execute(sql`set local role authenticated`);
-    try {
-      return await fn(tx);
-    } finally {
-      // Belt-and-braces: SET LOCAL is transaction-scoped, so COMMIT/ROLLBACK
-      // restores the role either way. If fn threw a Postgres error the tx is
-      // aborted and `reset role` itself fails (25P02) — swallow that so the
-      // original error propagates instead of being masked.
-      try {
-        await tx.execute(sql`reset role`);
-      } catch {
-        // aborted transaction; rollback will restore the role
-      }
-    }
-  });
-}
+export const withRls = makeWithRls(dbAdmin);
 ```
 
 **Step 3: Write an integration test proving the wrapper enforces RLS** (`src/lib/db/rls.test.ts`)
@@ -909,13 +949,22 @@ so selecting from it under withRls THROWS `permission denied` — it does not
 return an empty array; (b) drizzle wraps Postgres errors in DrizzleQueryError
 with the real error as `cause`, so assertions match the cause chain; (c) the
 contact is seeded with a fixed id so re-runs stay idempotent (it has no email,
-so the partial unique index would not deduplicate it).
+so the partial unique index would not deduplicate it); (d) pool hygiene must be
+probed on the COMMITTED path — a failure-path probe proves nothing because
+ROLLBACK reverts even a session-scoped SET. The committed-path test is
+mutation-verified: flipping the claims set_config to `is_local => false` fails
+it with the leaked sub visible.
 
 ```ts
 import { describe, it, expect, beforeAll } from "vitest";
 import { sql } from "drizzle-orm";
-import { dbAdmin, withRls } from "./index";
-import { contacts, updateTokens } from "./schema";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { makeWithRls, withRls } from "./index";
+import { dbAdmin } from "./admin";
+import * as schema from "./schema";
+
+const { contacts, updateTokens } = schema;
 
 // drizzle wraps Postgres errors in DrizzleQueryError ("Failed query: ...")
 // with the real error as `cause` — match against the full chain.
@@ -976,15 +1025,25 @@ describe("withRls", () => {
     ).rejects.toSatisfy((e) => /row-level security/.test(chainMessage(e)));
   });
 
-  it("does not leave the pool connection stuck in the authenticated role", async () => {
-    // A failed withRls call must not poison the connection for admin use:
-    // update_tokens has zero grants for `authenticated`, so this only
-    // succeeds if the role was actually reset.
-    await expect(
-      withRls({ sub: U1 }, (tx) => tx.select().from(updateTokens)),
-    ).rejects.toThrow();
-    const rows = await dbAdmin.select().from(updateTokens);
-    expect(Array.isArray(rows)).toBe(true);
+  it("leaves no role or claims on the pooled connection after commit", async () => {
+    // The hazard is the COMMITTED path: a session-scoped `set role` or
+    // set_config(is_local => false) would leak the user's claims onto the
+    // pooled connection for the NEXT caller. (A failure-path probe proves
+    // nothing — ROLLBACK reverts even a plain session-scoped SET.)
+    // max: 1 forces the probe onto the same physical connection.
+    const single = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    try {
+      const withRlsSingle = makeWithRls(drizzle(single, { schema }));
+      const rows = await withRlsSingle({ sub: U1 }, (tx) => tx.select().from(contacts));
+      expect(rows.length).toBeGreaterThan(0); // successful, committed
+      const [probe] = await single<{ role: string; claims: string | null }[]>`
+        select current_user as role,
+               current_setting('request.jwt.claims', true) as claims`;
+      expect(probe.role).toBe("postgres");
+      expect(probe.claims ?? "").toBe("");
+    } finally {
+      await single.end();
+    }
   });
 
   it("throws immediately when claims.sub is missing or empty", async () => {
@@ -995,7 +1054,7 @@ describe("withRls", () => {
 });
 ```
 
-**Step 4: Run** `pnpm test` → expect 6 pass (requires `supabase start` running and `.env.local` loaded). Env loading: `loadEnv` from `vite` in `vitest.config.ts` (pnpm's strict node_modules means `vite` must be added as an explicit devDependency — it resolves to the same version vitest already uses). Drop the now-stale `passWithNoTests: true`. Final `vitest.config.ts`:
+**Step 4: Run** `pnpm test` → expect 6 pass (requires `supabase start` running and `.env.local` loaded). Env loading: `loadEnv` from `vite` in `vitest.config.ts` (pnpm's strict node_modules means `vite` must be added as an explicit devDependency — it resolves to the same version vitest already uses). Drop the now-stale `passWithNoTests: true`. The real `server-only` module throws when imported outside a React Server Components bundle, and vitest runs in plain node — alias it to an empty stub `src/test/stubs/server-only.ts` (containing only `export {};`). Final `vitest.config.ts`:
 
 ```ts
 import { defineConfig } from "vitest/config";
@@ -1010,11 +1069,72 @@ export default defineConfig({
     // (tests need server-only vars like DATABASE_URL, not just NEXT_PUBLIC_*)
     env: loadEnv("", process.cwd(), ""),
   },
-  resolve: { alias: { "@": path.resolve(__dirname, "src") } },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"),
+      // The real `server-only` module throws outside a React Server
+      // Components bundle; vitest runs in plain node (no react-server
+      // resolution condition), so alias it to an empty stub.
+      "server-only": path.resolve(__dirname, "src/test/stubs/server-only.ts"),
+    },
+  },
 });
 ```
 
-**Step 5: Commit** `git add src/lib/db vitest.config.ts package.json pnpm-lock.yaml && git commit -m "feat: drizzle schema + RLS transaction wrapper with integration tests"`
+**Step 5: Lint guardrail for dbAdmin imports** — `no-restricted-imports` blocks `**/db/admin` (alias and relative forms) everywhere except the sanctioned call sites. Verified to fire from a disallowed file for both `@/lib/db/admin` and `../../lib/db/admin`. `eslint.config.mjs`:
+
+```js
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // dbAdmin bypasses RLS: restrict imports of the admin module to the
+  // sanctioned call sites (private.* definer calls, token minting, webhook
+  // status updates). Everything owner-facing goes through withRls.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/db/admin"],
+              message:
+                "dbAdmin bypasses RLS. Use withRls from @/lib/db for owner-facing data access; dbAdmin is only for private.* SECURITY DEFINER calls, update_token minting, and webhook status updates (see the allowlisted paths in eslint.config.mjs).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/lib/db/**",
+      "src/app/api/webhooks/**",
+      "src/app/u/**",
+      "src/app/b/**",
+      "src/app/dashboard/actions.ts",
+    ],
+    rules: { "no-restricted-imports": "off" },
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+```
+
+**Step 6: Commit** `git add src/lib/db src/test vitest.config.ts eslint.config.mjs package.json pnpm-lock.yaml && git commit -m "feat: drizzle schema + RLS transaction wrapper with integration tests"` (review hardening landed as a follow-up: `fix: committed-path pool test, serverless pool options, admin import guardrails`)
 
 ---
 

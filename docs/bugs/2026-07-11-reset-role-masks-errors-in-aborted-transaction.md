@@ -40,14 +40,23 @@ the explicit reset is belt-and-braces for the success path only.
 - `src/lib/db/rls.test.ts`: "update_tokens are unreachable under RLS" and
   "rejects writes into another owner's book" now match the real Postgres
   error text through the DrizzleQueryError cause chain (6/6 pass).
-- "does not leave the pool connection stuck in the authenticated role"
-  proves a failed withRls call does not poison the pooled connection:
-  `dbAdmin` can still select from zero-grant `update_tokens` afterwards.
+- Pool-hygiene note: a failure-path probe cannot verify non-poisoning
+  (ROLLBACK reverts even a plain session-scoped `SET`, so it always looks
+  clean). The real hazard is the COMMITTED path: "leaves no role or claims
+  on the pooled connection after commit" runs a successful `withRls` on a
+  dedicated max-1 pool via the exported `makeWithRls` factory, then asserts
+  the same physical connection reports `current_user = postgres` and no
+  `request.jwt.claims`. Mutation-verified: flipping the claims `set_config`
+  to session scope (`is_local => false`) makes the test fail with the
+  leaked sub visible. (Flipping only the role's scope is neutralized by the
+  finally's `reset role`, which clears session-level role too — genuine
+  defense in depth.)
 
 ## Recurrence guardrail
 
 The two error-text assertions in `src/lib/db/rls.test.ts` fail immediately
 if the wrapper ever re-masks errors (they match on the underlying Postgres
-message, not just "any rejection"). Convention: never `await` a statement
-in a `finally` inside an open transaction without catching — the tx may be
-aborted.
+message, not just "any rejection"), and the committed-path pool probe fails
+if any `set_config` in the wrapper is ever flipped to session scope.
+Convention: never `await` a statement in a `finally` inside an open
+transaction without catching — the tx may be aborted.

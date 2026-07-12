@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { sql } from "drizzle-orm";
-import { dbAdmin, withRls } from "./index";
-import { contacts, updateTokens } from "./schema";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import { makeWithRls, withRls } from "./index";
+import { dbAdmin } from "./admin";
+import * as schema from "./schema";
+
+const { contacts, updateTokens } = schema;
 
 // drizzle wraps Postgres errors in DrizzleQueryError ("Failed query: ...")
 // with the real error as `cause` — match against the full chain.
@@ -62,15 +67,25 @@ describe("withRls", () => {
     ).rejects.toSatisfy((e) => /row-level security/.test(chainMessage(e)));
   });
 
-  it("does not leave the pool connection stuck in the authenticated role", async () => {
-    // A failed withRls call must not poison the connection for admin use:
-    // update_tokens has zero grants for `authenticated`, so this only
-    // succeeds if the role was actually reset.
-    await expect(
-      withRls({ sub: U1 }, (tx) => tx.select().from(updateTokens)),
-    ).rejects.toThrow();
-    const rows = await dbAdmin.select().from(updateTokens);
-    expect(Array.isArray(rows)).toBe(true);
+  it("leaves no role or claims on the pooled connection after commit", async () => {
+    // The hazard is the COMMITTED path: a session-scoped `set role` or
+    // set_config(is_local => false) would leak the user's claims onto the
+    // pooled connection for the NEXT caller. (A failure-path probe proves
+    // nothing — ROLLBACK reverts even a plain session-scoped SET.)
+    // max: 1 forces the probe onto the same physical connection.
+    const single = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    try {
+      const withRlsSingle = makeWithRls(drizzle(single, { schema }));
+      const rows = await withRlsSingle({ sub: U1 }, (tx) => tx.select().from(contacts));
+      expect(rows.length).toBeGreaterThan(0); // successful, committed
+      const [probe] = await single<{ role: string; claims: string | null }[]>`
+        select current_user as role,
+               current_setting('request.jwt.claims', true) as claims`;
+      expect(probe.role).toBe("postgres");
+      expect(probe.claims ?? "").toBe("");
+    } finally {
+      await single.end();
+    }
   });
 
   it("throws immediately when claims.sub is missing or empty", async () => {

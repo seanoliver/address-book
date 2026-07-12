@@ -18,7 +18,7 @@ export const books = pgTable("books", {
   title: text("title").notNull(),
   enabledFields: jsonb("enabled_fields").notNull().$type<{
     partner_name: boolean; kids_names: boolean; birthday: boolean;
-  }>(),
+  }>().default({ partner_name: true, kids_names: true, birthday: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
