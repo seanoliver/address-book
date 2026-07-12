@@ -1,0 +1,117 @@
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { Webhook } from "svix";
+import { z } from "zod";
+// Sanctioned dbAdmin call site (see eslint.config.mjs): webhook status
+// updates key on resend_id, which no RLS policy exposes — there is no
+// user session here, only a svix signature.
+import { dbAdmin } from "@/lib/db/admin";
+import { emailSends } from "@/lib/db/schema";
+
+/**
+ * Statuses a webhook event can move a send TO. "sent" is only ever the
+ * insert-time default — no event maps to it (email.sent is ignored below
+ * because the row is created as 'sent' when the batch call returns).
+ */
+type WebhookStatus = "delivered" | "opened" | "bounced" | "complained";
+
+const EVENT_TO_STATUS: Record<string, WebhookStatus | undefined> = {
+  "email.delivered": "delivered",
+  "email.opened": "opened",
+  "email.bounced": "bounced",
+  "email.complained": "complained",
+};
+
+/**
+ * Status precedence: sent < delivered < opened < bounced/complained
+ * (terminal). Resend retries and out-of-order delivery mean a late
+ * "delivered" can arrive after "opened" — each incoming status may only
+ * overwrite the statuses listed here (strictly lower precedence), so:
+ * - a late "delivered" never regresses "opened"
+ * - nothing ever regresses "bounced"/"complained" (absent from every list)
+ */
+const OVERWRITES: Record<WebhookStatus, string[]> = {
+  delivered: ["sent"],
+  opened: ["sent", "delivered"],
+  bounced: ["sent", "delivered", "opened"],
+  complained: ["sent", "delivered", "opened"],
+};
+
+/**
+ * The shape we consume from a verified Resend event. Deliberately loose —
+ * extra keys are ignored; we only need the type and the email id.
+ */
+const ResendEvent = z.object({
+  type: z.string(),
+  data: z.object({ email_id: z.string() }),
+});
+
+export async function POST(req: Request) {
+  try {
+    // Raw body FIRST, before any parsing — svix verifies the exact bytes.
+    const payload = await req.text();
+
+    const secret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!secret) {
+      // Misconfiguration must be loud: a silent 200 would let Resend mark
+      // every event delivered while we drop them all.
+      console.error("[wh] [resend] RESEND_WEBHOOK_SECRET is not set");
+      return new Response("server misconfigured", { status: 500 });
+    }
+
+    const svixId = req.headers.get("svix-id");
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      return new Response("missing signature headers", { status: 401 });
+    }
+
+    let verified: unknown;
+    try {
+      verified = new Webhook(secret).verify(payload, {
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
+      });
+    } catch {
+      return new Response("invalid signature", { status: 401 });
+    }
+
+    const parsed = ResendEvent.safeParse(verified);
+    if (!parsed.success) {
+      // Correctly signed but not the shape we expect (Resend schema drift).
+      // Ack with 200 — a non-2xx would make Resend retry-storm an event we
+      // will never be able to parse. Log the drift; never log the payload.
+      console.warn("[wh] [resend] verified payload failed shape validation");
+      return new Response("ok");
+    }
+    const event = parsed.data;
+
+    const status = EVENT_TO_STATUS[event.type];
+    if (!status) {
+      // Includes email.sent (row already inserted as 'sent') and any event
+      // types we don't track. Ack so Resend doesn't retry.
+      return new Response("ok");
+    }
+
+    // Precedence-guarded update (see OVERWRITES). Unknown resend_id → 0 rows
+    // updated, which is fine: dry-run ids and other environments' events
+    // land here too.
+    await dbAdmin
+      .update(emailSends)
+      .set({ status, lastEventAt: sql`now()` })
+      .where(
+        and(
+          eq(emailSends.resendId, event.data.email_id),
+          inArray(emailSends.status, OVERWRITES[status]),
+        ),
+      );
+
+    return new Response("ok");
+  } catch (err) {
+    // Never throw unhandled; log only the error type — never the payload.
+    console.error(
+      `[wh] [resend] unhandled: ${err instanceof Error ? err.name : typeof err}`,
+    );
+    return new Response("internal error", { status: 500 });
+  }
+}

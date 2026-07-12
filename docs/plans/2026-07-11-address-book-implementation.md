@@ -1492,50 +1492,106 @@ Note `submissions_update_own_book` policy allows the status change and RLS scope
 **Files:**
 - Create: `src/app/api/webhooks/resend/route.ts`
 
-**Step 1: Route** (POST):
+**Step 1: Route** (POST) — as built, hardened beyond the original sketch:
+no non-null assertions (missing secret → 500 with a server log; missing
+svix-* headers → 401), zod validation of the verified payload (signed but
+malformed → 200 + log, so Resend schema drift can't cause retry storms),
+and a per-status precedence guard instead of the single
+`not in ('bounced','complained')` predicate — a late `email.delivered`
+retry must not regress `opened`:
 
 ```ts
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Webhook } from "svix";
-import { headers } from "next/headers";
-import { sql } from "drizzle-orm";
-import { dbAdmin } from "@/lib/db";
+import { z } from "zod";
+import { dbAdmin } from "@/lib/db/admin";
+import { emailSends } from "@/lib/db/schema";
 
-const EVENT_TO_STATUS: Record<string, string> = {
+type WebhookStatus = "delivered" | "opened" | "bounced" | "complained";
+
+const EVENT_TO_STATUS: Record<string, WebhookStatus | undefined> = {
   "email.delivered": "delivered",
   "email.opened": "opened",
   "email.bounced": "bounced",
   "email.complained": "complained",
 };
 
+// Status precedence: sent < delivered < opened < bounced/complained
+// (terminal). Each incoming status may only overwrite strictly lower
+// precedence, so out-of-order/retried events never regress a row.
+const OVERWRITES: Record<WebhookStatus, string[]> = {
+  delivered: ["sent"],
+  opened: ["sent", "delivered"],
+  bounced: ["sent", "delivered", "opened"],
+  complained: ["sent", "delivered", "opened"],
+};
+
+const ResendEvent = z.object({
+  type: z.string(),
+  data: z.object({ email_id: z.string() }),
+});
+
 export async function POST(req: Request) {
-  const payload = await req.text();
-  const h = await headers();
-  let evt: { type: string; data: { email_id: string } };
   try {
-    evt = new Webhook(process.env.RESEND_WEBHOOK_SECRET!).verify(payload, {
-      "svix-id": h.get("svix-id")!,
-      "svix-timestamp": h.get("svix-timestamp")!,
-      "svix-signature": h.get("svix-signature")!,
-    }) as typeof evt;
-  } catch {
-    return new Response("invalid signature", { status: 401 });
+    const payload = await req.text(); // raw bytes FIRST — svix verifies them
+    const secret = process.env.RESEND_WEBHOOK_SECRET;
+    if (!secret) {
+      console.error("[wh] [resend] RESEND_WEBHOOK_SECRET is not set");
+      return new Response("server misconfigured", { status: 500 });
+    }
+    const svixId = req.headers.get("svix-id");
+    const svixTimestamp = req.headers.get("svix-timestamp");
+    const svixSignature = req.headers.get("svix-signature");
+    if (!svixId || !svixTimestamp || !svixSignature) {
+      return new Response("missing signature headers", { status: 401 });
+    }
+    let verified: unknown;
+    try {
+      verified = new Webhook(secret).verify(payload, {
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
+      });
+    } catch {
+      return new Response("invalid signature", { status: 401 });
+    }
+    const parsed = ResendEvent.safeParse(verified);
+    if (!parsed.success) {
+      console.warn("[wh] [resend] verified payload failed shape validation");
+      return new Response("ok"); // ack schema drift — never log the payload
+    }
+    const status = EVENT_TO_STATUS[parsed.data.type];
+    if (!status) return new Response("ok"); // incl. email.sent — row starts 'sent'
+    // Unknown resend_id → 0 rows updated (dry-run ids, other environments).
+    await dbAdmin
+      .update(emailSends)
+      .set({ status, lastEventAt: sql`now()` })
+      .where(
+        and(
+          eq(emailSends.resendId, parsed.data.email_id),
+          inArray(emailSends.status, OVERWRITES[status]),
+        ),
+      );
+    return new Response("ok");
+  } catch (err) {
+    console.error(
+      `[wh] [resend] unhandled: ${err instanceof Error ? err.name : typeof err}`,
+    );
+    return new Response("internal error", { status: 500 });
   }
-  const status = EVENT_TO_STATUS[evt.type];
-  if (status) {
-    // never regress a bounce back to delivered/opened
-    await dbAdmin.execute(sql`
-      update public.email_sends
-      set status = ${status}, last_event_at = now()
-      where resend_id = ${evt.data.email_id}
-        and status not in ('bounced','complained')`);
-  }
-  return new Response("ok");
 }
 ```
 
-**Step 2: Verify locally** with a hand-signed svix payload (svix lib can sign: small script in `scratch/`), or defer to production smoke test — document which you did.
+**Step 2: Verify** — done both ways: (a) vitest integration suite
+`src/app/api/webhooks/resend/route.test.ts` signs payloads with the svix
+lib and calls the handler directly against the local DB (valid event,
+bad signature, missing headers, missing secret, unknown event, malformed
+payload, precedence matrix, unknown email_id); (b) a hand-signed local
+e2e — dev server + Playwright — posted delivered/opened/late-delivered/
+bounced and watched the dashboard chip move Sent → Delivered → Opened →
+(still Opened) → Bounced.
 
-**Step 3: Dashboard status chips** already read `email_sends.status` (Task 8); confirm chips render: `sent / delivered / opened / bounced / updated`. Commit.
+**Step 3: Dashboard status chips** already read `email_sends.status` (Task 8); chips confirmed rendering `sent / delivered / opened / bounced / updated` in the e2e above. Commit.
 
 ---
 
