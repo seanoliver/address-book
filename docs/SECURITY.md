@@ -36,6 +36,36 @@ RLS does not apply to `TRUNCATE`, and Supabase's default ACLs historically leave
 
 The pgTAP suite (`supabase/tests/database/01_rls.sql`) asserts the exact expected grant matrix — a stray grant (or a dropped one) in any future migration shows up as a named failure — plus cross-user isolation and `WITH CHECK` probes for every policy. Full story: [docs/bugs/2026-07-11-residual-truncate-privileges-bypass-rls.md](bugs/2026-07-11-residual-truncate-privileges-bypass-rls.md).
 
+## Database role
+
+Local development connects as `postgres` — the table owner, so it implicitly bypasses RLS (which is what `dbAdmin` relies on) but also holds DDL, every schema, and role administration. **Production SHOULD connect as a dedicated restricted role instead**: it can read and write the app's tables and call the `private.*` functions, but owns nothing — no `CREATE`/`ALTER`/`DROP`, no ability to replace the SECURITY DEFINER functions or touch other schemas (`storage`, `vault`, …), and only a two-column peek at `auth.users`. A compromised app server then can't rewrite the schema out from under the security model.
+
+Run this once against the production database as `postgres` (SQL editor or psql), then point `DATABASE_URL` at `app_server`:
+
+```sql
+create role app_server login password '<generate-a-strong-password>' bypassrls;
+grant authenticated to app_server;
+grant usage on schema public, private to app_server;
+grant select, insert, update, delete on all tables in schema public to app_server;
+grant usage on all sequences in schema public to app_server;
+grant execute on all functions in schema private to app_server;
+grant select (id, email) on auth.users to app_server;
+alter default privileges for role postgres in schema public
+  grant select, insert, update, delete on tables to app_server;
+alter default privileges for role postgres in schema public
+  grant usage on sequences to app_server;
+alter default privileges for role postgres in schema private
+  grant execute on functions to app_server;
+```
+
+Notes (each verified against a local stack — the full vitest integration suite passes connected as `app_server`):
+
+- **`bypassrls` is required, and does not weaken Wall 2.** Without it, every `dbAdmin` query is silently filtered to zero rows by the default-deny policies (webhook status updates match nothing, token minting inserts nothing). It stays safe because RLS checks the *current* role: `withRls` executes `SET ROLE authenticated`, and `authenticated` has no `BYPASSRLS`, so every owner-facing query remains policy-enforced (`src/lib/db/rls.test.ts` proves both behaviors under this role). Supabase's `postgres` role is privileged enough to create `bypassrls` roles even though it isn't a superuser.
+- **`grant authenticated`** is what allows the `SET ROLE authenticated` inside `withRls` — and membership also inherits `usage` on the `auth` schema, which the column grant below needs.
+- **`select (id, email) on auth.users`** is the only auth-schema privilege the app uses (the owner-notify email lookup in the permalink submit path). `postgres` can grant exactly this; broader DML on `auth.users` isn't grantable by `postgres` and isn't needed.
+- The schema has no sequences today (uuid keys throughout); the sequence grants plus the `alter default privileges` lines are future-proofing so tables, identity columns, or `private` functions added by later migrations (which run as `postgres`) keep working without re-granting.
+- **Running the vitest integration suite against a restricted role** additionally needs fixture-seeding privileges the app itself never uses (`grant insert, delete on auth.users to app_server;`, run as a superuser). That's for local verification only — don't add it in production.
+
 ## Token design
 
 Update links (`/u/<token>`) are bearer credentials, treated accordingly (`src/lib/tokens.ts`):
@@ -60,6 +90,8 @@ Update links (`/u/<token>`) are bearer credentials, treated accordingly (`src/li
 ## Rate limits
 
 All public surfaces are metered by `private.check_rate_limit` — a fixed-window limiter backed by Postgres (no extra infra). Client IPs are **hashed (SHA-256) before use as keys**, so `private.rate_limits` never stores raw IPs. Callers **fail closed**: a limiter outage denies the request rather than waving it through.
+
+**Self-hosting note:** the per-IP keys come from the `x-forwarded-for` header, which a platform proxy (Vercel, or your own reverse proxy) must set. Run the app bare — no proxy setting the header — and every visitor shares the single `"unknown"` bucket: the limiter still fails closed (legitimate traffic gets throttled long before an attacker gets extra budget), but the site degrades under any real load. Deploy behind Vercel or a proxy that sets `x-forwarded-for`.
 
 | Surface | Key | Limit |
 |---|---|---|
@@ -115,13 +147,14 @@ Work through this before pointing real traffic at a deployment:
 
 - [ ] **Disable the Data API**: Supabase Dashboard → Settings → Data API → **remove all exposed schemas**. Local dev keeps it on because the CLI and pgTAP need the stack; production must not. This is Wall 1 — do not skip it.
 - [ ] **`DATABASE_URL` uses the transaction-mode pooler (port 6543) with `sslmode=require`**, and lives only in server-side env (never `NEXT_PUBLIC_*`, never in client-reachable config).
+- [ ] **`DATABASE_URL` connects as a restricted role, not `postgres`** — create `app_server` with the tested SQL in [Database role](#database-role) and point the connection string at it.
 - [ ] **Enable Supabase Auth email rate limits** (Dashboard → Auth → Rate Limits) — magic-link requests are an email-sending endpoint.
 - [ ] **Auth settings note**: the app is passwordless (magic link + Google), so `minimum_password_length` is N/A — but confirm signups stay confirmation-gated: the magic-link flow inherently verifies the email, and local `config.toml` sets `enable_confirmations = false` for dev convenience only. Review the hosted Auth email settings rather than copying the local config.
 - [ ] **Real Turnstile keys** — the keys in `.env.local.example` are Cloudflare's public always-pass test keys; with them, the bot wall is decorative.
 - [ ] **Resend**: verify the sending domain (SPF/DKIM) and set the webhook endpoint + `RESEND_WEBHOOK_SECRET` — without the secret the webhook route refuses all events (fail closed).
 - [ ] **Vercel env vars marked Sensitive** so they're write-only in the dashboard.
 - [ ] **`EMAIL_DRY_RUN` must be unset.** The code also gates it on `NODE_ENV !== "production"` (a stray flag can't divert real sends into console logs of token links), but don't rely on the belt when you can remove the braces.
-- [ ] **Schedule a `private.rate_limits` sweep** — the table grows with distinct key×window entries and has no in-band cleanup. pg_cron:
+- [ ] **Schedule a `private.rate_limits` sweep** — the table grows with distinct key×window entries and has no in-band cleanup. Enable the `pg_cron` extension first (Dashboard → Database → Extensions), then:
 
   ```sql
   select cron.schedule('sweep-rate-limits', '17 4 * * *',

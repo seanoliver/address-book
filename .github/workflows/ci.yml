@@ -39,7 +39,7 @@ jobs:
           cache: pnpm
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1 # keep in lockstep with the "supabase" devDependency in package.json
       - run: pnpm install --frozen-lockfile
       - run: supabase start
       - name: Create .env.local from the local stack
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1 # keep in lockstep with the "supabase" devDependency in package.json
       - run: supabase start
       - run: supabase test db
 
@@ -93,7 +93,7 @@ jobs:
           cache: pnpm
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1 # keep in lockstep with the "supabase" devDependency in package.json
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: supabase start

@@ -75,8 +75,10 @@ export async function saveBook(
     };
   }
 
-  // Task 12: also revalidate the old + new /b/[slug] paths when the public
-  // page exists.
+  // No /b/[slug] revalidation needed: the public permalink page renders
+  // dynamically on every request (it reads headers() for rate limiting), so
+  // a slug change takes effect immediately — the old link 404s, the new one
+  // works.
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/settings");
   return { saved: true };

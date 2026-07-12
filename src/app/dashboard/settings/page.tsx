@@ -35,6 +35,7 @@ export default async function SettingsPage() {
 
         <BookForm
           urlPrefix={urlPrefix}
+          currentSlug={book?.slug ?? null}
           defaults={{
             title: book?.title ?? "",
             slug: book?.slug ?? "",

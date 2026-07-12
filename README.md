@@ -68,11 +68,12 @@ Required vars are asserted at server startup (`src/lib/env.ts`); a misconfigured
 The reference deployment is **Vercel + hosted Supabase + Resend + Cloudflare Turnstile**:
 
 1. Create a [Supabase](https://supabase.com) project and push the schema: `supabase link --project-ref <ref> && supabase db push`.
-2. **Work through the [production checklist in docs/SECURITY.md](docs/SECURITY.md#production-checklist)** — most importantly: remove all exposed schemas from the Data API, and use the transaction-pooler `DATABASE_URL` (port 6543, `sslmode=require`).
-3. Create a [Resend](https://resend.com) account, verify your sending domain (SPF/DKIM), and add a webhook endpoint pointing at `https://<your-app>/api/webhooks/resend`.
-4. Create a [Cloudflare Turnstile](https://www.cloudflare.com/application-services/products/turnstile/) widget for your domain (the test keys in the example env pass every challenge — never ship them).
-5. Deploy to [Vercel](https://vercel.com): import the repo, set every variable from the table above (marked **Sensitive**), and deploy.
-6. Set the Supabase Auth **Site URL** to your `APP_URL` and configure the magic-link email template to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (see `supabase/templates/magic_link.html`).
+2. **Work through the [production checklist in docs/SECURITY.md](docs/SECURITY.md#production-checklist)** — most importantly: remove all exposed schemas from the Data API, and use the transaction-pooler `DATABASE_URL` (port 6543, `sslmode=require`). Connect as a restricted `app_server` role rather than `postgres` — the tested one-time SQL is in the [Database role](docs/SECURITY.md#database-role) section.
+3. Self-hosting off Vercel? Run behind a proxy that sets `x-forwarded-for` — without it, rate limiting lumps all visitors into one shared bucket (see the [self-hosting note](docs/SECURITY.md#rate-limits)).
+4. Create a [Resend](https://resend.com) account, verify your sending domain (SPF/DKIM), and add a webhook endpoint pointing at `https://<your-app>/api/webhooks/resend`.
+5. Create a [Cloudflare Turnstile](https://www.cloudflare.com/application-services/products/turnstile/) widget for your domain (the test keys in the example env pass every challenge — never ship them).
+6. Deploy to [Vercel](https://vercel.com): import the repo, set every variable from the table above (marked **Sensitive**), and deploy.
+7. Set the Supabase Auth **Site URL** to your `APP_URL` and configure the magic-link email template to link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (see `supabase/templates/magic_link.html`).
 
 ## Contributing
 

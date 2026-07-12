@@ -81,7 +81,12 @@ describe("withRls", () => {
       const [probe] = await single<{ role: string; claims: string | null }[]>`
         select current_user as role,
                current_setting('request.jwt.claims', true) as claims`;
-      expect(probe.role).toBe("postgres");
+      // The connection role is `postgres` in local dev and a restricted
+      // `app_server` role in a hardened deployment (docs/SECURITY.md,
+      // "Database role") — either way, what matters is that the DROPPED
+      // role didn't stick: the pooled connection must not still be
+      // `authenticated` (or carry claims) after commit.
+      expect(probe.role).not.toBe("authenticated");
       expect(probe.claims ?? "").toBe("");
     } finally {
       await single.end();

@@ -18,8 +18,18 @@ const ALWAYS_REQUIRED = [
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
 ] as const;
 
-/** Only needed when emails actually go out (see isEmailDryRun in email/resend.ts). */
-const EMAIL_REQUIRED = ["RESEND_API_KEY", "EMAIL_FROM"] as const;
+/**
+ * Only needed when emails actually go out (see isEmailDryRun in
+ * email/resend.ts). RESEND_WEBHOOK_SECRET belongs to this group: real sends
+ * produce status webhooks, and without the secret the webhook route refuses
+ * every event (fail closed) — better to fail loudly at startup than to
+ * silently drop all delivery/bounce tracking.
+ */
+const EMAIL_REQUIRED = [
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
+  "RESEND_WEBHOOK_SECRET",
+] as const;
 
 export function assertServerEnv(): void {
   const missing: string[] = ALWAYS_REQUIRED.filter((k) => !process.env[k]);

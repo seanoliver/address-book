@@ -43,6 +43,43 @@ test("creates a book from the settings form", async () => {
   await expect(page.getByText("No contacts yet")).toBeVisible();
 });
 
+test("changing the slug requires acknowledging the link-break warning", async () => {
+  await page.goto("/dashboard/settings");
+  const save = page.getByRole("button", { name: "Save" });
+  const warning = page.getByText(/breaks the old one/);
+
+  // Untouched form: no warning, save enabled.
+  await expect(warning).toBeHidden();
+  await expect(save).toBeEnabled();
+
+  // Editing the slug surfaces the warning and gates submit on the checkbox.
+  await page.locator("#slug").fill(`${slug}-moved`);
+  await expect(warning).toBeVisible();
+  await expect(save).toBeDisabled();
+
+  // Reverting to the saved slug clears the warning and re-enables save.
+  await page.locator("#slug").fill(slug);
+  await expect(warning).toBeHidden();
+  await expect(save).toBeEnabled();
+
+  // Change it again, acknowledge, and the save goes through.
+  await page.locator("#slug").fill(`${slug}-moved`);
+  await expect(save).toBeDisabled();
+  await page.getByRole("checkbox", { name: "I understand" }).check();
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+
+  // The new link is saved (warning gone against the new baseline).
+  await expect(warning).toBeHidden();
+  await expect(
+    page.getByRole("link", { name: `http://localhost:3000/b/${slug}-moved` }),
+  ).toBeVisible();
+
+  // Serial journey: the next step expects to start from the dashboard.
+  await page.goto("/dashboard");
+});
+
 test("adds a contact via the form", async () => {
   await page.getByRole("link", { name: "Add contact" }).click();
   await page.locator("#full_name").fill("Ada Lovelace");
