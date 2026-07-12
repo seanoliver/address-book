@@ -1141,11 +1141,13 @@ export default eslintConfig;
 ## Task 6: Auth (Supabase SSR) + login page
 
 **Files:**
-- Create: `src/lib/supabase/server.ts`, `src/lib/supabase/middleware.ts`, `src/middleware.ts`, `src/lib/auth.ts`, `src/app/login/page.tsx`, `src/app/auth/confirm/route.ts`, `src/app/auth/signout/route.ts`
+- Create: `src/lib/supabase/server.ts`, `src/lib/supabase/middleware.ts`, `src/proxy.ts` (Next 16 renamed the root `middleware` file convention to `proxy` — `src/middleware.ts` works but logs a deprecation warning), `src/lib/auth.ts`, `src/app/login/page.tsx`, `src/app/auth/confirm/route.ts`, `src/app/auth/signout/route.ts`, `src/app/dashboard/page.tsx` (placeholder proving the gate; Task 7 replaces it), `supabase/templates/magic_link.html`
+- Modify: `supabase/config.toml` — magic-link/confirmation email templates must link to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (the canonical SSR flow; the default template routes through GoTrue `/verify` instead, which the server can't consume), `site_url = "http://localhost:3000"`, `additional_redirect_urls` allow `http://localhost:3000/**`. Requires `supabase stop && supabase start`.
 
 **Step 1: Supabase server client** (`src/lib/supabase/server.ts`) — standard `@supabase/ssr` cookie pattern:
 
 ```ts
+import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -1168,7 +1170,7 @@ export async function createClient() {
 }
 ```
 
-**Step 2: Session-refresh middleware** (`src/lib/supabase/middleware.ts` + `src/middleware.ts`) — copy the canonical `@supabase/ssr` `updateSession` pattern from Supabase docs verbatim; matcher excludes `_next/*`, static assets, `/b/*`, `/u/*`, `/api/webhooks/*` (public routes need no session work).
+**Step 2: Session-refresh middleware** (`src/lib/supabase/middleware.ts` + `src/proxy.ts`) — the canonical `@supabase/ssr` `updateSession` pattern, using `supabase.auth.getClaims()` (validates the JWT; refreshes first if stale) instead of `getUser()`; matcher excludes `_next/*`, static assets, `/b/*`, `/u/*`, `/api/webhooks/*` (public routes need no session work).
 
 **Step 3: Auth gate helper** (`src/lib/auth.ts`)
 
@@ -1191,7 +1193,7 @@ export async function requireUser(): Promise<SessionClaims> {
 
 **Step 5: Verify manually**
 
-`pnpm dev`, visit `/login`, submit your email, open Inbucket (`http://127.0.0.1:54324`), click magic link, expect redirect to `/dashboard` (404 for now — that's fine, session cookie set).
+`pnpm dev`, visit `/login`, submit your email, open Mailpit (`http://127.0.0.1:54324` — the local email UI is Mailpit, not Inbucket), click magic link, expect redirect to `/dashboard` (placeholder page showing the JWT `sub` + sign-out button; without a session it bounces to `/login`).
 
 **Step 6: Commit** `git commit -m "feat: supabase ssr auth with magic link + google"`
 
