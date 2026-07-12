@@ -6,8 +6,13 @@ import { parseContactsCsv, type CsvRowError } from "@/lib/csv/import";
 import { type ContactInput } from "@/lib/validation/contact";
 import { importContacts } from "./actions";
 
-/** Friendly rejection before parsing — 1,000 contact rows fit well under this. */
-const MAX_FILE_BYTES = 1024 * 1024;
+/**
+ * Friendly rejection before parsing — 1,000 contact rows fit well under this.
+ * Kept below Next's 1 MB server-action body limit with headroom: the action
+ * payload is JSON with ~130 B of field-name keys per row, so a CSV close to
+ * 1 MB could serialize past the limit and 413 even though the file is fine.
+ */
+const MAX_FILE_BYTES = 750 * 1024;
 
 const PREVIEW_ROWS = 20;
 
@@ -63,7 +68,7 @@ export function ImportForm() {
     setDone(null);
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) {
-      setError("That file is larger than 1 MB. Split it into smaller files and try again.");
+      setError("That file is larger than 750 KB. Split it into smaller files and try again.");
       return;
     }
     const text = await file.text();
@@ -76,7 +81,16 @@ export function ImportForm() {
     if (!preview || preview.ready.length === 0) return;
     const { ready, duplicates } = preview;
     startTransition(async () => {
-      const result = await importContacts(ready);
+      // Transport failures (oversized action payload → 413, network drop)
+      // REJECT the action promise rather than returning { error } — catch
+      // them so the user sees a banner instead of an unhandled rejection.
+      let result: Awaited<ReturnType<typeof importContacts>>;
+      try {
+        result = await importContacts(ready);
+      } catch {
+        setError("Something went wrong — nothing was imported. Try again.");
+        return;
+      }
       if ("error" in result) {
         setError(result.error);
         return;
@@ -133,7 +147,16 @@ export function ImportForm() {
         </div>
       ) : null}
 
-      {preview ? (
+      {/* Header-only file: recognizable columns but zero data rows — bare
+          "0 contacts ready, 0 rows skipped" counts would read like a bug. */}
+      {preview &&
+      preview.ready.length === 0 &&
+      preview.errors.length === 0 &&
+      preview.duplicates === 0 ? (
+        <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
+          No data rows found in this file.
+        </p>
+      ) : preview ? (
         <>
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
             <span className="font-medium">
@@ -163,7 +186,7 @@ export function ImportForm() {
                 {preview.errors.length === 1 ? "row" : "rows"} won&apos;t be
                 imported:
               </p>
-              <ul className="mt-2 list-inside list-disc">
+              <ul className="mt-2 max-h-64 list-inside list-disc overflow-y-auto">
                 {preview.errors.map((err) => (
                   <li key={`${err.row}-${err.message}`}>
                     {err.row > 0 ? `Row ${err.row}: ` : null}

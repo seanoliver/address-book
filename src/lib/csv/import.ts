@@ -98,6 +98,8 @@ export function parseContactsCsv(text: string): ParseContactsCsvResult {
 
   parsed.data.slice(0, CSV_ROW_LIMIT).forEach((row, i) => {
     const candidate: Partial<Record<ContactField, string>> = {};
+    // Columns apply left-to-right, so when two headers map to the same field
+    // (e.g. "name" and "full_name") the last recognized column wins.
     for (const [source, target] of columnMap) {
       const value = row[source];
       // Short rows leave trailing columns undefined; omit those keys so

@@ -91,6 +91,15 @@ describe("parseContactsCsv", () => {
     expect(valid).toEqual([{ full_name: "Ada", email: "ada@example.com" }]);
   });
 
+  it("lets the last recognized column win when headers conflict", () => {
+    // Both "name" (alias) and "full_name" (canonical) map to full_name;
+    // columns are applied left-to-right, so the rightmost one wins.
+    const csv = "name,full_name\nFrom Alias,From Canonical";
+    const { valid, errors } = parseContactsCsv(csv);
+    expect(errors).toEqual([]);
+    expect(valid).toEqual([{ full_name: "From Canonical" }]);
+  });
+
   it("ignores unknown columns", () => {
     const csv = "full_name,favorite_color,email\nAda,mauve,ada@example.com";
     const { valid, errors } = parseContactsCsv(csv);
