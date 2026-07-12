@@ -270,6 +270,19 @@ create policy "contact_events_select_own" on public.contact_events
   using (exists (select 1 from public.contacts c
                  join public.books b on b.id = c.book_id
                  where c.id = contact_id and b.owner_id = (select auth.uid())));
+
+-- ── explicit least-privilege grants ─────────────────────────────────────
+-- Current Supabase defaults no longer auto-expose new public tables to
+-- client roles, so every privilege is granted explicitly. RLS policies
+-- above then filter rows within these grants. anon gets NOTHING;
+-- update_tokens gets NOTHING for any client-facing role.
+grant usage on schema public to authenticated;
+grant select, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.books to authenticated;
+grant select, insert, update, delete on public.contacts to authenticated;
+grant select, update, delete on public.submissions to authenticated; -- no insert: definer fn only
+grant select on public.email_sends to authenticated;
+grant select on public.contact_events to authenticated;
 ```
 
 **Step 4: Apply and smoke-check**
