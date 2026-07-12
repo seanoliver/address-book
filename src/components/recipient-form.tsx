@@ -6,9 +6,14 @@ import {
   useTurnstileResetOnError,
 } from "@/components/turnstile-widget";
 import { type TokenUpdateValues } from "@/lib/validation/contact";
-import { type TokenUpdateState } from "./actions";
 
-const initialState: TokenUpdateState = {};
+/**
+ * Shared recipient-facing contact form, used by both unauthenticated
+ * surfaces: /u/[token] (pre-filled update) and /b/[slug] (blank, write-only
+ * self-add). Renders ONLY the fields the book enables — a disabled field is
+ * absent from the DOM entirely, so it is never posted. There is no notes
+ * field on this surface by design (owner-private).
+ */
 
 const inputClasses =
   "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
@@ -21,14 +26,29 @@ export type EnabledFields = {
   birthday: boolean;
 };
 
-type TokenUpdateFormProps = {
-  /** submitTokenUpdate with the token pre-bound server-side. */
+/**
+ * Action state for both recipient forms. `values` echoes the submission back
+ * on error: React 19 resets uncontrolled inputs to their defaultValue after
+ * a form action completes, so without the echo a failed save would wipe the
+ * user's input.
+ */
+export type RecipientFormState = {
+  error?: string;
+  values?: TokenUpdateValues;
+};
+
+type RecipientFormProps = {
+  /** Server action with the token/slug pre-bound server-side. */
   action: (
-    state: TokenUpdateState,
+    state: RecipientFormState,
     formData: FormData,
-  ) => Promise<TokenUpdateState>;
+  ) => Promise<RecipientFormState>;
   defaults: TokenUpdateValues;
   enabled: EnabledFields;
+  submitLabel: string;
+  pendingLabel: string;
+  /** Optional helper copy under the email input (e.g. "Optional — ..."). */
+  emailHint?: string;
 };
 
 type FieldProps = {
@@ -61,18 +81,15 @@ function Field({ name, label, value, type = "text", maxLength, hint }: FieldProp
   );
 }
 
-/**
- * Recipient-facing update form. Renders ONLY the fields this book enables —
- * a disabled field is absent from the DOM entirely, so it is never posted
- * and (per apply_token_update semantics) never touched. There is no notes
- * field on this surface by design.
- */
-export function TokenUpdateForm({
+export function RecipientForm({
   action,
   defaults,
   enabled,
-}: TokenUpdateFormProps) {
-  const [state, formAction, pending] = useActionState(action, initialState);
+  submitLabel,
+  pendingLabel,
+  emailHint,
+}: RecipientFormProps) {
+  const [state, formAction, pending] = useActionState(action, {});
   // Turnstile responses are single-use: refresh the widget after any error
   // so the user's retry carries a fresh response.
   useTurnstileResetOnError(state.error);
@@ -130,6 +147,7 @@ export function TokenUpdateForm({
         value={v.email}
         type="email"
         maxLength={320}
+        hint={emailHint}
       />
       {enabled.birthday ? (
         <Field name="birthday" label="Birthday" value={v.birthday} type="date" />
@@ -176,7 +194,7 @@ export function TokenUpdateForm({
         disabled={pending}
         className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
-        {pending ? "Saving…" : "Update my details"}
+        {pending ? pendingLabel : submitLabel}
       </button>
     </form>
   );

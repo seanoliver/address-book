@@ -11,9 +11,9 @@ import { logDbError } from "@/lib/log";
 import { hashedIpKey, requestIp } from "@/lib/request-ip";
 import { TOKEN_SHAPE } from "@/lib/tokens";
 import { type TokenUpdateValues } from "@/lib/validation/contact";
+import { RecipientForm } from "@/components/recipient-form";
 import { InvalidLinkNotice, Notice } from "../notice";
 import { submitTokenUpdate } from "./actions";
-import { TokenUpdateForm } from "./token-update-form";
 
 /**
  * Tokens are secrets carried in the URL — this route must NEVER be crawled,
@@ -146,10 +146,12 @@ export default async function TokenUpdatePage({
           out of date, and hit update. Only {ownerLabel} sees what you enter.
         </p>
 
-        <TokenUpdateForm
+        <RecipientForm
           action={action}
           defaults={defaults}
           enabled={enabled_fields}
+          submitLabel="Update my details"
+          pendingLabel="Saving…"
         />
       </div>
     </main>

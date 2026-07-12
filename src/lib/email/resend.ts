@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { Resend } from "resend";
 
-export interface AddressRequestItem {
+export interface EmailItem {
   to: string;
   subject: string;
   html: string;
@@ -55,7 +55,7 @@ function getClient(): Resend {
  * bare link (devs need it to exercise /u/[token]) and sends nothing.
  */
 export async function sendAddressRequests(
-  items: AddressRequestItem[],
+  items: EmailItem[],
 ): Promise<SendResult[]> {
   if (isEmailDryRun()) {
     return items.map((item) => {
@@ -109,4 +109,45 @@ export async function sendAddressRequests(
     }
   }
   return results;
+}
+
+/**
+ * Single transactional notification (e.g. "new submission" to a book owner).
+ * Swallows send failures after logging name/message only — notifications are
+ * fire-and-forget and must never fail the flow that triggered them. The
+ * subject/body must never contain recipient-submitted data (the dry-run path
+ * logs the subject).
+ */
+export async function sendNotification(item: EmailItem): Promise<void> {
+  if (isEmailDryRun()) {
+    console.info(`[em] [dry-run] notification to ${item.to}: ${item.subject}`);
+    return;
+  }
+
+  const from = process.env.EMAIL_FROM;
+  if (!from) {
+    console.error("[em] [sendNotification] EMAIL_FROM is not set");
+    return;
+  }
+
+  try {
+    const { error } = await getClient().emails.send({
+      from,
+      to: item.to,
+      subject: item.subject,
+      html: item.html,
+      text: item.text,
+    });
+    if (error) {
+      // Resend's own error message — names/codes only, no email bodies.
+      console.error(
+        `[em] [sendNotification] send failed: ${error.name} ${error.message}`,
+      );
+    }
+  } catch (err) {
+    // Transport failure. Log only the error type — never the payload.
+    console.error(
+      `[em] [sendNotification] send threw: ${err instanceof Error ? err.name : typeof err}`,
+    );
+  }
 }

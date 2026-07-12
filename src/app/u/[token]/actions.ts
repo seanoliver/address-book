@@ -18,17 +18,12 @@ import {
   type TokenUpdateField,
   type TokenUpdateValues,
 } from "@/lib/validation/contact";
+// Type-only import from a client module — erased at compile time, so no
+// client code is pulled into this server action bundle.
+import { type RecipientFormState } from "@/components/recipient-form";
 import { INVALID_LINK_MESSAGE } from "../notice";
 
-export type TokenUpdateState = {
-  error?: string;
-  /**
-   * Submitted values, echoed back on error. React 19 resets uncontrolled
-   * inputs to their defaultValue after a form action completes — the form
-   * uses these as defaults so a failed save doesn't wipe the user's input.
-   */
-  values?: TokenUpdateValues;
-};
+export type TokenUpdateState = RecipientFormState;
 
 const GENERIC_ERROR = "Something went wrong. Please try again.";
 

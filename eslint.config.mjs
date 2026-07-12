@@ -32,6 +32,12 @@ const eslintConfig = defineConfig([
       "src/app/u/**",
       "src/app/b/**",
       "src/app/dashboard/actions.ts",
+      // Sanctioned: the public permalink surface is unauthenticated (no
+      // claims for withRls); this module selects ONLY title/owner name/
+      // enabled-field flags by slug — never ids, counts, or contact data.
+      "src/lib/queries/public-book.ts",
+      // ... and its integration test, which seeds fixtures as admin.
+      "src/lib/queries/public-book.test.ts",
       // Sanctioned: contact CRUD writes go through withRls; dbAdmin is used
       // ONLY to append contact_events audit rows after a successful RLS
       // write (contact_events is client-unwritable by design — no insert

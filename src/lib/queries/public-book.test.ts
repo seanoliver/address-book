@@ -1,0 +1,67 @@
+import { describe, it, expect, beforeAll } from "vitest";
+import { sql } from "drizzle-orm";
+import { dbAdmin } from "@/lib/db/admin";
+import { getPublicBook, SLUG_SHAPE } from "./public-book";
+
+// Fixed ids keep re-runs idempotent (same pattern as rls.test.ts).
+const U1 = "00000000-0000-0000-0000-00000000c001";
+const B1 = "10000000-0000-0000-0000-00000000c001";
+const SLUG = "public-book-test";
+
+describe("SLUG_SHAPE", () => {
+  it("accepts valid slugs and rejects malformed ones", () => {
+    expect(SLUG_SHAPE.test("abc")).toBe(true);
+    expect(SLUG_SHAPE.test("my-book-2")).toBe(true);
+    expect(SLUG_SHAPE.test("a".repeat(63))).toBe(true);
+    expect(SLUG_SHAPE.test("ab")).toBe(false); // too short
+    expect(SLUG_SHAPE.test("a".repeat(64))).toBe(false); // too long
+    expect(SLUG_SHAPE.test("UPPER")).toBe(false);
+    expect(SLUG_SHAPE.test("-starts-with-hyphen")).toBe(false);
+    expect(SLUG_SHAPE.test("has space")).toBe(false);
+    expect(SLUG_SHAPE.test("semi;colon")).toBe(false);
+    expect(SLUG_SHAPE.test("")).toBe(false);
+  });
+});
+
+describe("getPublicBook", () => {
+  beforeAll(async () => {
+    await dbAdmin.execute(sql`
+      insert into auth.users (id, email) values (${U1}, 'publicbook@test.dev')
+      on conflict (id) do nothing`);
+    await dbAdmin.execute(sql`
+      update public.profiles set full_name = 'Public Owner' where id = ${U1}`);
+    await dbAdmin.execute(sql`
+      insert into public.books (id, owner_id, slug, title, enabled_fields)
+      values (${B1}, ${U1}, ${SLUG}, 'Public Test Book',
+              '{"partner_name": true, "kids_names": false, "birthday": true}')
+      on conflict (id) do update set slug = excluded.slug,
+        title = excluded.title, enabled_fields = excluded.enabled_fields`);
+  });
+
+  it("returns EXACTLY title, ownerName, enabledFields — nothing else", async () => {
+    const book = await getPublicBook(SLUG);
+    expect(book).not.toBeNull();
+    // Key-set assertion: a widened select (id, counts, ...) fails here.
+    expect(Object.keys(book!).sort()).toEqual([
+      "enabledFields",
+      "ownerName",
+      "title",
+    ]);
+    expect(book).toEqual({
+      title: "Public Test Book",
+      ownerName: "Public Owner",
+      enabledFields: { partner_name: true, kids_names: false, birthday: true },
+    });
+  });
+
+  it("returns null for an unknown slug", async () => {
+    expect(await getPublicBook("no-such-book-ever")).toBeNull();
+  });
+
+  it("returns null for malformed slugs without querying", async () => {
+    // Includes an injection-shaped probe: it must fail the shape gate.
+    for (const bad of ["UPPER!", "ab", "x' or '1'='1", "a".repeat(64)]) {
+      expect(await getPublicBook(bad)).toBeNull();
+    }
+  });
+});
