@@ -1,6 +1,7 @@
 "use server";
 
 import { notFound, redirect } from "next/navigation";
+import { after } from "next/server";
 import { sql } from "drizzle-orm";
 // Type-only import from a client module — erased at compile time.
 import { type RecipientFormState } from "@/components/recipient-form";
@@ -104,8 +105,23 @@ export async function submitToBook(
     return { error: TOO_MANY, values: submitted };
   }
 
-  // 2b. Rate limit per book (100/day): stops distributed spam converging on
-  //     one book. Key is the raw slug — it's public, unlike IPs.
+  // 3. Turnstile BEFORE the shared book budget: requests that fail the bot
+  //    gate burn only their own IP budget, never the book's — otherwise a
+  //    handful of IPs sending bot-gated junk could lock a targeted book out
+  //    for the day. The response comes from the hidden input the widget
+  //    injects; verifyTurnstile fails closed and never logs it.
+  const turnstileResponse = String(formData.get("cf-turnstile-response") ?? "");
+  if (!(await verifyTurnstile(turnstileResponse, ip))) {
+    return {
+      error: "Verification failed — please try again.",
+      values: submitted,
+    };
+  }
+
+  // 4. Rate limit per book (100/day): stops distributed spam converging on
+  //    one book. Only bot-gate-passing requests reach this, so only they
+  //    consume the shared budget. Key is the raw slug — it's public,
+  //    unlike IPs.
   try {
     allowed = await checkRateLimit(`permalink-book:${slug}`, 100, 86400);
   } catch (err) {
@@ -116,17 +132,7 @@ export async function submitToBook(
     return { error: TOO_MANY, values: submitted };
   }
 
-  // 3. Turnstile. The response comes from the hidden input the widget
-  //    injects; verifyTurnstile fails closed and never logs it.
-  const turnstileResponse = String(formData.get("cf-turnstile-response") ?? "");
-  if (!(await verifyTurnstile(turnstileResponse, ip))) {
-    return {
-      error: "Verification failed — please try again.",
-      values: submitted,
-    };
-  }
-
-  // 4. Validate. Same limits as the SQL CHECK constraints — class-22 errors
+  // 5. Validate. Same limits as the SQL CHECK constraints — class-22 errors
   //    (which can echo values into logs) stay unreachable, and the Zod
   //    max-lengths keep the payload far below submit_to_book's 64KB guard.
   const parsed = tokenUpdateSchema.safeParse(submitted);
@@ -137,7 +143,7 @@ export async function submitToBook(
     };
   }
 
-  // 5. Payload = only the fields with a value. Unlike apply_token_update
+  // 6. Payload = only the fields with a value. Unlike apply_token_update
   //    (where a present-but-empty key means "clear the column"), submit_to_
   //    book stores the payload verbatim as a NEW pending submission — empty
   //    keys carry no meaning there and would only pad attacker-controlled
@@ -148,7 +154,7 @@ export async function submitToBook(
     if (value !== undefined) payload[field] = value;
   }
 
-  // 6. Insert the pending submission. `false` means the slug doesn't exist
+  // 7. Insert the pending submission. `false` means the slug doesn't exist
   //    (book vanished between render and submit, or a hostile direct call) —
   //    the payload guards are unreachable here because Zod already enforced
   //    object shape and size. Enumeration note: `true` NEVER reveals whether
@@ -166,9 +172,11 @@ export async function submitToBook(
   }
   if (!accepted) notFound();
 
-  // 7. Fire-and-forget owner notification (never fails the submission),
-  //    then redirect. The thanks URL carries nothing derived from the
-  //    submission — just the public slug.
-  await notifyOwner(slug);
+  // 8. Fire-and-forget owner notification: after() defers it until AFTER
+  //    the response is sent, so a slow email provider can never delay the
+  //    submitter's redirect (and notifyOwner catches everything, so it can
+  //    never fail the submission either). The thanks URL carries nothing
+  //    derived from the submission — just the public slug.
+  after(() => notifyOwner(slug));
   redirect(`/b/${slug}/thanks`);
 }
