@@ -1534,7 +1534,7 @@ export async function POST(req: Request) {
 
 **Step 2: `docs/SECURITY.md`** — the OSS security story:
 - Architecture (two walls: server code + RLS; browser never reaches data APIs)
-- **Production checklist:** Dashboard → Settings → Data API → **remove all exposed schemas**; confirm `DATABASE_URL` uses the pooler with the `postgres` role only in Vercel server env; enable Supabase Auth email rate limits; set real Turnstile keys; configure Resend domain (SPF/DKIM) + webhook secret; Vercel env vars marked Sensitive; schedule a `private.rate_limits` sweep (pg_cron: `delete from private.rate_limits where window_start < now() - interval '1 day'`) — the table grows with distinct IP×endpoint keys and has no in-band cleanup.
+- **Production checklist:** Dashboard → Settings → Data API → **remove all exposed schemas**; confirm `DATABASE_URL` uses the **transaction-mode pooler (port 6543) with `sslmode=require`** and lives only in Vercel server env; enable Supabase Auth email rate limits; set real Turnstile keys; configure Resend domain (SPF/DKIM) + webhook secret; Vercel env vars marked Sensitive; schedule a `private.rate_limits` sweep (pg_cron: `delete from private.rate_limits where window_start < now() - interval '1 day'`) — the table grows with distinct IP×endpoint keys and has no in-band cleanup.
 - Token design, enumeration-proofing, rate limits, audit trail.
 - Reporting a vulnerability (email).
 
