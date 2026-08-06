@@ -1,14 +1,12 @@
 import { type Metadata } from "next";
 import { notFound } from "next/navigation";
+import { InvitePageIntroduction } from "@/components/invite-page-introduction";
+import { BLANK_RECIPIENT_VALUES } from "@/components/recipient-fields";
 import { RecipientForm } from "@/components/recipient-form";
 import { checkRateLimit } from "@/lib/db/rate-limit";
 import { logDbError } from "@/lib/log";
 import { getPublicBook, SLUG_SHAPE, type PublicBook } from "@/lib/queries/public-book";
 import { hashedIpKey, requestIp } from "@/lib/request-ip";
-import {
-  TOKEN_UPDATE_FIELDS,
-  type TokenUpdateValues,
-} from "@/lib/validation/contact";
 import { Notice } from "../../u/notice";
 import { submitToBook } from "./actions";
 
@@ -21,11 +19,6 @@ import { submitToBook } from "./actions";
 export const metadata: Metadata = {
   title: "Add your address",
 };
-
-/** All recipient fields, blank — this form never pre-fills anything. */
-const BLANK_DEFAULTS = Object.fromEntries(
-  TOKEN_UPDATE_FIELDS.map((field) => [field, ""]),
-) as TokenUpdateValues;
 
 /**
  * Fully public, unauthenticated, WRITE-ONLY page. Every input is hostile and
@@ -87,17 +80,11 @@ export default async function PublicBookPage({
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
       <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Add your address to {ownerLabel}&apos;s address book
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Fill in your details below. Only {ownerLabel} can see what you
-          submit.
-        </p>
+        <InvitePageIntroduction ownerName={ownerLabel} />
 
         <RecipientForm
           action={action}
-          defaults={BLANK_DEFAULTS}
+          defaults={BLANK_RECIPIENT_VALUES}
           enabled={book.enabledFields}
           submitLabel="Add my details"
           pendingLabel="Submitting…"

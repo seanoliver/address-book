@@ -76,15 +76,23 @@ export async function createBook(
   if (/\/onboarding$/.test(page.url())) {
     await page.locator("#display_name").fill(opts.displayName);
     await page.locator("#slug").fill(opts.slug);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Continue to preview" }).click();
     await expect(page.getByText("Step 2 of 2")).toBeVisible();
+    for (const [name, on] of Object.entries(opts.toggles ?? {})) {
+      const labels = {
+        partner_name: "Partner name",
+        kids_names: "Kids' names",
+        birthday: "Birthday",
+      } as const;
+      await page
+        .getByRole("checkbox", {
+          name: labels[name as keyof typeof labels],
+        })
+        .setChecked(on);
+    }
     await page.getByRole("button", { name: "Create my address book" }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
-
-    // This first onboarding slice creates the three optional fields off.
-    // Tests that need a non-default configuration can update it in Settings.
-    if (Object.keys(opts.toggles ?? {}).length === 0) return;
-    await page.goto("/dashboard/settings");
+    return;
   }
 
   await page.locator("#display_name").fill(opts.displayName);

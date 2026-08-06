@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { cleanupUser, seedOwnerBook } from "./db";
-import { createBook, signupAndLogin, uniqueEmail, uniqueSlug } from "./helpers";
+import { signupAndLogin, uniqueEmail, uniqueSlug } from "./helpers";
 
 /**
  * The owner's whole happy path in one serial journey: signup → onboarding →
@@ -48,38 +48,63 @@ test("signs up via magic link and lands on focused onboarding", async () => {
 test("keeps entered details when the chosen link is taken", async () => {
   await page.locator("#display_name").fill("Draft Owner");
   await page.locator("#slug").fill(occupiedSlug);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue to preview" }).click();
   await expect(page.getByText("That link name is taken", { exact: true })).toBeVisible();
   await expect(page.getByText("Step 1 of 2")).toBeVisible();
   await expect(page.locator("#display_name")).toHaveValue("Draft Owner");
   await expect(page.locator("#slug")).toHaveValue(occupiedSlug);
 });
 
-test("reviews details and goes back without losing them", async () => {
+test("configures a faithful preview and preserves it when going back", async () => {
   await page.locator("#display_name").fill("Draft Owner");
   await page.locator("#slug").fill(slug);
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue to preview" }).click();
   await expect(page.getByText("Step 2 of 2")).toBeVisible();
-  await expect(page.getByText("Draft Owner")).toBeVisible();
-  await expect(page.getByText(`http://localhost:3000/b/${slug}`)).toBeVisible();
+
+  const preview = page.getByRole("region", { name: "Invite page preview" });
+  await expect(
+    preview.getByRole("heading", {
+      name: "Add your address to Draft Owner's address book",
+    }),
+  ).toBeVisible();
+  await expect(preview.locator("#full_name")).toBeDisabled();
+  await expect(preview.locator("#email")).toBeDisabled();
+  await expect(preview.locator("#address_line1")).toBeDisabled();
+  await expect(preview.locator("#partner_name")).toHaveCount(0);
+  await expect(preview.locator("#kids_names")).toHaveCount(0);
+  await expect(preview.locator("#birthday")).toHaveCount(0);
+  await expect(preview.getByRole("button", { name: "Add my details" })).toBeDisabled();
+
+  await page.getByRole("checkbox", { name: "Partner name" }).check();
+  await page.getByRole("checkbox", { name: "Kids' names" }).check();
+  await page.getByRole("checkbox", { name: "Birthday" }).check();
+  await expect(preview.locator("#partner_name")).toBeDisabled();
+  await expect(preview.locator("#kids_names")).toBeDisabled();
+  await expect(preview.locator("#birthday")).toBeDisabled();
+  await page.getByRole("checkbox", { name: "Birthday" }).uncheck();
+  await expect(preview.locator("#birthday")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByText("Step 1 of 2")).toBeVisible();
   await expect(page.locator("#display_name")).toHaveValue("Draft Owner");
   await expect(page.locator("#slug")).toHaveValue(slug);
+
+  await page.getByRole("button", { name: "Continue to preview" }).click();
+  await expect(page.getByRole("checkbox", { name: "Partner name" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Kids' names" })).toBeChecked();
 });
 
-test("creates a title-free book with optional fields off", async () => {
-  await createBook(page, { displayName: "E2E Owner", slug });
-  await page.goto("/dashboard");
+test("publishes the optional fields selected in the preview", async () => {
+  await page.getByRole("button", { name: "Create my address book" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
   await expect(
     page.getByRole("heading", { name: "Your address book" }),
   ).toBeVisible();
   await expect(page.getByText("No contacts yet")).toBeVisible();
 
   await page.goto(`/b/${slug}`);
-  await expect(page.locator("#partner_name")).toHaveCount(0);
-  await expect(page.locator("#kids_names")).toHaveCount(0);
+  await expect(page.locator("#partner_name")).toBeVisible();
+  await expect(page.locator("#kids_names")).toBeVisible();
   await expect(page.locator("#birthday")).toHaveCount(0);
 
   await page.goto("/onboarding");

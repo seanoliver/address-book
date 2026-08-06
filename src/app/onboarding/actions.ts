@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { type EnabledFields } from "@/components/recipient-fields";
 import { withRls } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { books, profiles } from "@/lib/db/schema";
@@ -12,7 +13,7 @@ import { getOwnBook } from "@/lib/queries/books";
 import { isBookSlugAvailable } from "@/lib/queries/public-book";
 import { bookSchema } from "@/lib/validation/book";
 
-export type OnboardingValues = {
+export type OnboardingValues = EnabledFields & {
   display_name: string;
   slug: string;
 };
@@ -27,6 +28,9 @@ function readValues(formData: FormData): OnboardingValues {
   return {
     display_name: String(formData.get("display_name") ?? ""),
     slug: String(formData.get("slug") ?? ""),
+    partner_name: formData.get("partner_name") === "on",
+    kids_names: formData.get("kids_names") === "on",
+    birthday: formData.get("birthday") === "on",
   };
 }
 
@@ -40,12 +44,7 @@ export async function advanceOnboarding(
   const values = readValues(formData);
   const intent = String(formData.get("intent") ?? "");
 
-  const parsed = bookSchema.safeParse({
-    ...values,
-    partner_name: false,
-    kids_names: false,
-    birthday: false,
-  });
+  const parsed = bookSchema.safeParse(values);
   if (!parsed.success) {
     return {
       step: "details",
@@ -54,10 +53,7 @@ export async function advanceOnboarding(
     };
   }
 
-  const validValues: OnboardingValues = {
-    display_name: parsed.data.display_name,
-    slug: parsed.data.slug,
-  };
+  const validValues: OnboardingValues = parsed.data;
   if (intent === "back") return { step: "details", values: validValues };
 
   if (intent === "continue") {
@@ -84,10 +80,10 @@ export async function advanceOnboarding(
     return { step: "details", values: validValues, error: "Invalid request." };
   }
 
-  const enabledFields = {
-    partner_name: false,
-    kids_names: false,
-    birthday: false,
+  const enabledFields: EnabledFields = {
+    partner_name: validValues.partner_name,
+    kids_names: validValues.kids_names,
+    birthday: validValues.birthday,
   };
   try {
     await withRls(claims, async (tx) => {

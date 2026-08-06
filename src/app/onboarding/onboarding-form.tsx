@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { type EnabledFields } from "@/components/recipient-fields";
 import {
   advanceOnboarding,
   type OnboardingState,
   type OnboardingValues,
 } from "./actions";
+import { OnboardingPreview } from "./onboarding-preview";
 
 const inputClasses =
   "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
@@ -21,50 +23,39 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
     advanceOnboarding,
     initialState,
   );
+  const [enabledFields, setEnabledFields] = useState<EnabledFields>({
+    partner_name: defaults.partner_name,
+    kids_names: defaults.kids_names,
+    birthday: defaults.birthday,
+  });
   const values = state.values;
 
   if (state.step === "confirm") {
     return (
-      <form action={formAction} className="mt-6 flex flex-col gap-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          Step 2 of 2
-        </p>
+      <form action={formAction} className="mt-6 flex flex-col gap-6">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            Ready to create your address book?
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Step 2 of 2
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Preview your invite page
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Review these details. You can change them later in Settings.
+            Choose the optional details you&apos;d like friends to add. The
+            preview updates as you make changes.
           </p>
         </div>
 
         {state.error ? <ErrorMessage>{state.error}</ErrorMessage> : null}
 
-        <dl className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-800 dark:border-zinc-800">
-          <div className="flex flex-col gap-1 p-4 sm:flex-row sm:justify-between">
-            <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-              Your name
-            </dt>
-            <dd className="text-zinc-900 dark:text-zinc-50">
-              {values.display_name}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-1 p-4 sm:flex-row sm:justify-between">
-            <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-              Public link
-            </dt>
-            <dd className="break-all font-mono text-zinc-900 dark:text-zinc-50">
-              {urlPrefix}
-              {values.slug}
-            </dd>
-          </div>
-          <div className="flex flex-col gap-1 p-4 sm:flex-row sm:justify-between">
-            <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-              Optional fields
-            </dt>
-            <dd className="text-zinc-900 dark:text-zinc-50">None yet</dd>
-          </div>
-        </dl>
+        <OnboardingPreview
+          ownerName={values.display_name}
+          publicUrl={`${urlPrefix}${values.slug}`}
+          enabledFields={enabledFields}
+          onFieldChange={(name, enabled) =>
+            setEnabledFields((current) => ({ ...current, [name]: enabled }))
+          }
+        />
 
         <input type="hidden" name="display_name" value={values.display_name} />
         <input type="hidden" name="slug" value={values.slug} />
@@ -95,7 +86,7 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
   }
 
   return (
-    <form action={formAction} className="mt-6 flex flex-col gap-5">
+    <form action={formAction} className="mx-auto mt-6 flex max-w-lg flex-col gap-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         Step 1 of 2
       </p>
@@ -160,6 +151,22 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
         </p>
       </div>
 
+      <input
+        type="hidden"
+        name="partner_name"
+        value={enabledFields.partner_name ? "on" : "off"}
+      />
+      <input
+        type="hidden"
+        name="kids_names"
+        value={enabledFields.kids_names ? "on" : "off"}
+      />
+      <input
+        type="hidden"
+        name="birthday"
+        value={enabledFields.birthday ? "on" : "off"}
+      />
+
       <button
         type="submit"
         name="intent"
@@ -167,7 +174,7 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
         disabled={pending}
         className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
       >
-        {pending ? "Checking…" : "Continue"}
+        {pending ? "Checking…" : "Continue to preview"}
       </button>
     </form>
   );
