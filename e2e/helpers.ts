@@ -46,8 +46,8 @@ async function fetchMagicLink(email: string): Promise<string> {
 
 /**
  * Sign up (or in) through the REAL /login form: request a magic link, fetch
- * it from Mailpit, and visit it. Lands on /dashboard — or /dashboard/settings
- * for a brand-new user (the current pre-onboarding redirect).
+ * it from Mailpit, and visit it. Existing owners land on /dashboard; a new
+ * owner is redirected into /onboarding.
  */
 export async function signupAndLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");
@@ -58,10 +58,10 @@ export async function signupAndLogin(page: Page, email: string): Promise<void> {
   ).toBeVisible();
   const link = await fetchMagicLink(email);
   await page.goto(link);
-  await expect(page).toHaveURL(/\/dashboard(\/settings)?$/);
+  await expect(page).toHaveURL(/\/(dashboard|onboarding)$/);
 }
 
-/** Create (or update) the signed-in owner's book through the real settings form. */
+/** Create (or update) the signed-in owner's book through the real UI. */
 export async function createBook(
   page: Page,
   opts: {
@@ -72,6 +72,21 @@ export async function createBook(
   },
 ): Promise<void> {
   await page.goto("/dashboard/settings");
+
+  if (/\/onboarding$/.test(page.url())) {
+    await page.locator("#display_name").fill(opts.displayName);
+    await page.locator("#slug").fill(opts.slug);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByText("Step 2 of 2")).toBeVisible();
+    await page.getByRole("button", { name: "Create my address book" }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+
+    // This first onboarding slice creates the three optional fields off.
+    // Tests that need a non-default configuration can update it in Settings.
+    if (Object.keys(opts.toggles ?? {}).length === 0) return;
+    await page.goto("/dashboard/settings");
+  }
+
   await page.locator("#display_name").fill(opts.displayName);
   await page.locator("#slug").fill(opts.slug);
   for (const [name, on] of Object.entries(opts.toggles ?? {})) {

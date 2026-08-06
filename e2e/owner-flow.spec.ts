@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { cleanupUser } from "./db";
+import { cleanupUser, seedOwnerBook } from "./db";
 import { createBook, signupAndLogin, uniqueEmail, uniqueSlug } from "./helpers";
 
 /**
@@ -12,35 +12,78 @@ import { createBook, signupAndLogin, uniqueEmail, uniqueSlug } from "./helpers";
 test.describe.configure({ mode: "serial" });
 
 const ownerEmail = uniqueEmail("owner");
+const occupiedEmail = uniqueEmail("occupied-owner");
 const slug = uniqueSlug("owner-book");
+const occupiedSlug = uniqueSlug("occupied-book");
 
 let page: Page;
 
 test.beforeAll(async ({ browser }) => {
+  await seedOwnerBook({
+    email: occupiedEmail,
+    displayName: "Existing Owner",
+    slug: occupiedSlug,
+  });
   page = await browser.newPage();
 });
 
 test.afterAll(async () => {
   await cleanupUser(ownerEmail);
+  await cleanupUser(occupiedEmail);
   await page.close();
 });
 
-test("signs up via magic link and lands on onboarding", async () => {
+test("signs up via magic link and lands on focused onboarding", async () => {
   await signupAndLogin(page, ownerEmail);
-  // No book yet → the dashboard bounces to settings for onboarding.
-  await expect(page).toHaveURL(/\/dashboard\/settings$/);
+  await expect(page).toHaveURL(/\/onboarding$/);
   await expect(
-    page.getByRole("heading", { name: "Set up your address book" }),
+    page.getByRole("heading", { name: "Create your address book" }),
   ).toBeVisible();
+  await expect(page.getByText("Step 1 of 2")).toBeVisible();
+  await expect(page.locator("#display_name")).toHaveValue("");
+  await expect(page.locator("#slug")).toHaveValue(ownerEmail.split("@")[0]);
+  await expect(page.getByRole("link", { name: "Contacts" })).toHaveCount(0);
 });
 
-test("creates a book from the settings form", async () => {
+test("keeps entered details when the chosen link is taken", async () => {
+  await page.locator("#display_name").fill("Draft Owner");
+  await page.locator("#slug").fill(occupiedSlug);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByText("That link name is taken", { exact: true })).toBeVisible();
+  await expect(page.getByText("Step 1 of 2")).toBeVisible();
+  await expect(page.locator("#display_name")).toHaveValue("Draft Owner");
+  await expect(page.locator("#slug")).toHaveValue(occupiedSlug);
+});
+
+test("reviews details and goes back without losing them", async () => {
+  await page.locator("#display_name").fill("Draft Owner");
+  await page.locator("#slug").fill(slug);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByText("Step 2 of 2")).toBeVisible();
+  await expect(page.getByText("Draft Owner")).toBeVisible();
+  await expect(page.getByText(`http://localhost:3000/b/${slug}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByText("Step 1 of 2")).toBeVisible();
+  await expect(page.locator("#display_name")).toHaveValue("Draft Owner");
+  await expect(page.locator("#slug")).toHaveValue(slug);
+});
+
+test("creates a title-free book with optional fields off", async () => {
   await createBook(page, { displayName: "E2E Owner", slug });
   await page.goto("/dashboard");
   await expect(
     page.getByRole("heading", { name: "Your address book" }),
   ).toBeVisible();
   await expect(page.getByText("No contacts yet")).toBeVisible();
+
+  await page.goto(`/b/${slug}`);
+  await expect(page.locator("#partner_name")).toHaveCount(0);
+  await expect(page.locator("#kids_names")).toHaveCount(0);
+  await expect(page.locator("#birthday")).toHaveCount(0);
+
+  await page.goto("/onboarding");
+  await expect(page).toHaveURL(/\/dashboard$/);
 });
 
 test("changing the slug requires acknowledging the link-break warning", async () => {

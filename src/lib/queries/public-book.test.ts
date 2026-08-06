@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/admin";
-import { getPublicBook, SLUG_SHAPE } from "./public-book";
+import {
+  getPublicBook,
+  isBookSlugAvailable,
+  SLUG_SHAPE,
+} from "./public-book";
 
 // Fixed ids keep re-runs idempotent (same pattern as rls.test.ts).
 const U1 = "00000000-0000-0000-0000-00000000c001";
@@ -47,6 +51,12 @@ describe("getPublicBook", () => {
       ownerName: "Public Owner",
       enabledFields: { partner_name: true, kids_names: false, birthday: true },
     });
+  });
+
+  it("reports public link availability without returning book data", async () => {
+    await expect(isBookSlugAvailable(SLUG)).resolves.toBe(false);
+    await expect(isBookSlugAvailable("available-book-link")).resolves.toBe(true);
+    await expect(isBookSlugAvailable("Bad Link")).resolves.toBe(false);
   });
 
   it("returns null for an unknown slug", async () => {

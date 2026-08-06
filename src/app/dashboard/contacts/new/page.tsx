@@ -9,7 +9,7 @@ export default async function NewContactPage() {
   const book = await getOwnBook(claims);
 
   // Onboarding: no book yet → set one up first.
-  if (!book) redirect("/dashboard/settings");
+  if (!book) redirect("/onboarding");
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">

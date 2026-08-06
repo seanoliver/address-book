@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import postgres from "postgres";
 
 /**
@@ -65,6 +65,21 @@ export async function seedBook(opts: {
     values (${opts.ownerId}, ${opts.slug}, ${db.json(enabled)})
     returning id`;
   return rows[0].id as string;
+}
+
+export async function seedOwnerBook(opts: {
+  email: string;
+  displayName: string;
+  slug: string;
+}): Promise<{ ownerId: string; bookId: string }> {
+  const ownerId = randomUUID();
+  await db`insert into auth.users (id, email) values (${ownerId}, ${opts.email})`;
+  const bookId = await seedBook({
+    ownerId,
+    slug: opts.slug,
+    displayName: opts.displayName,
+  });
+  return { ownerId, bookId };
 }
 
 export async function seedContact(opts: {

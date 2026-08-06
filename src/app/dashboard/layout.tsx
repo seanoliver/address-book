@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { getOwnBook } from "@/lib/queries/books";
 
 const navLinkClasses =
   "rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50";
@@ -10,7 +12,8 @@ export default async function DashboardLayout({
   // Gate every dashboard route at the layout level; pages and actions still
   // call requireUser() themselves for claims (layouts don't re-run on every
   // client-side navigation).
-  await requireUser();
+  const claims = await requireUser();
+  if (!(await getOwnBook(claims))) redirect("/onboarding");
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-zinc-50 dark:bg-black">

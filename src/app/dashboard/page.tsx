@@ -14,7 +14,7 @@ export default async function DashboardPage({
   const book = await getOwnBook(claims);
 
   // Onboarding: no book yet → set one up first.
-  if (!book) redirect("/dashboard/settings");
+  if (!book) redirect("/onboarding");
 
   // A crafted URL can repeat ?q=; take the first value rather than crashing.
   const { q } = await searchParams;
