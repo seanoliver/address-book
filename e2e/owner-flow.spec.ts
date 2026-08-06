@@ -111,6 +111,50 @@ test("publishes the optional fields selected in the preview", async () => {
   await expect(page).toHaveURL(/\/dashboard$/);
 });
 
+test("previews settings changes before publishing them", async ({ browser }) => {
+  await page.goto("/dashboard/settings");
+  const preview = page.getByRole("region", { name: "Invite page preview" });
+  await expect(
+    preview.getByRole("heading", {
+      name: "Add your address to Draft Owner's address book",
+    }),
+  ).toBeVisible();
+
+  await page.locator("#display_name").fill("Updated Owner");
+  await page.getByRole("checkbox", { name: "Kids' names" }).uncheck();
+  await page.getByRole("checkbox", { name: "Birthday" }).check();
+  await expect(
+    preview.getByRole("heading", {
+      name: "Add your address to Updated Owner's address book",
+    }),
+  ).toBeVisible();
+  await expect(preview.locator("#kids_names")).toHaveCount(0);
+  await expect(preview.locator("#birthday")).toBeDisabled();
+
+  const liveContext = await browser.newContext();
+  const livePage = await liveContext.newPage();
+  await livePage.goto(`/b/${slug}`);
+  await expect(
+    livePage.getByRole("heading", {
+      name: "Add your address to Draft Owner's address book",
+    }),
+  ).toBeVisible();
+  await expect(livePage.locator("#kids_names")).toBeVisible();
+  await expect(livePage.locator("#birthday")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+  await livePage.reload();
+  await expect(
+    livePage.getByRole("heading", {
+      name: "Add your address to Updated Owner's address book",
+    }),
+  ).toBeVisible();
+  await expect(livePage.locator("#kids_names")).toHaveCount(0);
+  await expect(livePage.locator("#birthday")).toBeVisible();
+  await liveContext.close();
+});
+
 test("changing the slug requires acknowledging the link-break warning", async () => {
   await page.goto("/dashboard/settings");
   const save = page.getByRole("button", { name: "Save" });
@@ -130,7 +174,16 @@ test("changing the slug requires acknowledging the link-break warning", async ()
   await expect(warning).toBeHidden();
   await expect(save).toBeEnabled();
 
-  // Change it again, acknowledge, and the save goes through.
+  // A taken link preserves the edit and leaves the current link live.
+  await page.locator("#slug").fill(occupiedSlug);
+  await page.getByRole("checkbox", { name: "I understand" }).check();
+  await save.click();
+  await expect(page.getByText("That link name is taken", { exact: true })).toBeVisible();
+  await expect(page.locator("#slug")).toHaveValue(occupiedSlug);
+  const currentResponse = await page.request.get(`/b/${slug}`);
+  expect(currentResponse.status()).toBe(200);
+
+  // Every subsequent edit rearms acknowledgement before a successful save.
   await page.locator("#slug").fill(`${slug}-moved`);
   await expect(save).toBeDisabled();
   await page.getByRole("checkbox", { name: "I understand" }).check();
@@ -144,22 +197,12 @@ test("changing the slug requires acknowledging the link-break warning", async ()
     page.getByRole("link", { name: `http://localhost:3000/b/${slug}-moved` }),
   ).toBeVisible();
 
+  const oldResponse = await page.request.get(`/b/${slug}`);
+  const newResponse = await page.request.get(`/b/${slug}-moved`);
+  expect(oldResponse.status()).toBe(404);
+  expect(newResponse.status()).toBe(200);
+
   // Serial journey: the next step expects to start from the dashboard.
-  await page.goto("/dashboard");
-});
-
-test("updates the owner name shown on the public invite page", async () => {
-  await page.goto("/dashboard/settings");
-  await page.locator("#display_name").fill("Updated Owner");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("status")).toHaveText("Saved.");
-
-  await page.goto(`/b/${slug}-moved`);
-  await expect(
-    page.getByRole("heading", {
-      name: "Add your address to Updated Owner's address book",
-    }),
-  ).toBeVisible();
   await page.goto("/dashboard");
 });
 

@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { InvitePageConfigurator } from "@/components/invite-page-configurator";
 import { type EnabledFields } from "@/components/recipient-fields";
 import {
   advanceOnboarding,
   type OnboardingState,
   type OnboardingValues,
 } from "./actions";
-import { OnboardingPreview } from "./onboarding-preview";
 
 const inputClasses =
   "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
@@ -48,7 +48,7 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
 
         {state.error ? <ErrorMessage>{state.error}</ErrorMessage> : null}
 
-        <OnboardingPreview
+        <InvitePageConfigurator
           ownerName={values.display_name}
           publicUrl={`${urlPrefix}${values.slug}`}
           enabledFields={enabledFields}

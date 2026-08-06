@@ -13,20 +13,22 @@ const OPTIONAL_FIELDS = [
   ["birthday", "Birthday"],
 ] as const;
 
-type OnboardingPreviewProps = {
+type InvitePageConfiguratorProps = {
   ownerName: string;
   publicUrl: string;
   enabledFields: EnabledFields;
+  linkIsLive?: boolean;
   onFieldChange: (name: keyof EnabledFields, enabled: boolean) => void;
 };
 
 /** Optional-field controls paired with a deliberately inert invite preview. */
-export function OnboardingPreview({
+export function InvitePageConfigurator({
   ownerName,
   publicUrl,
   enabledFields,
+  linkIsLive = false,
   onFieldChange,
-}: OnboardingPreviewProps) {
+}: InvitePageConfiguratorProps) {
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
       <aside className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900">
@@ -62,7 +64,13 @@ export function OnboardingPreview({
             Public link
           </dt>
           <dd className="mt-1 break-all font-mono text-zinc-700 dark:text-zinc-300">
-            {publicUrl}
+            {linkIsLive ? (
+              <a href={publicUrl} className="underline underline-offset-2">
+                {publicUrl}
+              </a>
+            ) : (
+              publicUrl
+            )}
           </dd>
         </dl>
       </aside>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { InvitePageConfigurator } from "@/components/invite-page-configurator";
+import { type EnabledFields } from "@/components/recipient-fields";
 import {
   saveBook,
   type BookFormValues,
@@ -9,33 +11,33 @@ import {
 
 const initialState: SaveBookState = {};
 
-type BookFormProps = {
-  urlPrefix: string;
-  defaults: BookFormValues;
-  /** The book's saved slug, or null when no book exists yet (create mode). */
-  currentSlug: string | null;
-};
-
 const inputClasses =
   "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
 
+type BookFormProps = {
+  urlPrefix: string;
+  defaults: BookFormValues;
+  currentSlug: string;
+};
+
 export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
   const [state, formAction, pending] = useActionState(saveBook, initialState);
-  // React 19 resets uncontrolled inputs to defaultValue after a form action
-  // completes; on error the action echoes the submitted values back so the
-  // reset restores what the user typed instead of wiping the form.
-  const v = state.values ?? defaults;
+  const [displayName, setDisplayName] = useState(defaults.display_name);
+  const [slugValue, setSlugValue] = useState(defaults.slug);
+  const [enabledFields, setEnabledFields] = useState<EnabledFields>({
+    partner_name: defaults.partner_name,
+    kids_names: defaults.kids_names,
+    birthday: defaults.birthday,
+  });
 
   // Slug-change guard (client-side UX only — not a security control): a
   // changed slug breaks every already-shared link AND frees the old slug for
-  // anyone else to claim, so editing it requires an explicit acknowledgment
-  // before submit is enabled. Every slug keystroke re-arms the checkbox.
-  const [slugValue, setSlugValue] = useState(v.slug);
+  // anyone else to claim, so editing it requires explicit acknowledgment.
   const [slugChangeAcked, setSlugChangeAcked] = useState(false);
-  const slugChanged = currentSlug !== null && slugValue !== currentSlug;
+  const slugChanged = slugValue !== currentSlug;
 
   return (
-    <form action={formAction} className="mt-6 flex flex-col gap-5">
+    <form action={formAction} className="mt-6 flex flex-col gap-6">
       {state.error ? (
         <div
           role="alert"
@@ -53,64 +55,72 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="display_name"
-          className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
+      <section
+        aria-labelledby="owner-details-heading"
+        className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900"
+      >
+        <h2
+          id="owner-details-heading"
+          className="text-sm font-semibold text-zinc-900 dark:text-zinc-50"
         >
-          Your name
-        </label>
-        <input
-          id="display_name"
-          name="display_name"
-          type="text"
-          required
-          maxLength={200}
-          autoComplete="name"
-          defaultValue={v.display_name}
-          placeholder="Sean"
-          className={inputClasses}
-        />
-      </div>
+          Your details
+        </h2>
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="display_name"
+              className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
+            >
+              Your name
+            </label>
+            <input
+              id="display_name"
+              name="display_name"
+              type="text"
+              required
+              maxLength={200}
+              autoComplete="name"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Sean"
+              className={inputClasses}
+            />
+          </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="slug"
-          className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
-        >
-          Link name
-        </label>
-        <div className="flex items-center gap-2">
-          <span className="shrink-0 font-mono text-sm text-zinc-500 dark:text-zinc-400">
-            {urlPrefix}
-          </span>
-          {/* pattern uses \- : browsers compile the attribute with the `v`
-              regex flag, where an unescaped hyphen inside a character class
-              is a syntax error (the whole pattern would be silently
-              ignored). */}
-          <input
-            id="slug"
-            name="slug"
-            type="text"
-            required
-            pattern="[a-z0-9][a-z0-9\-]{2,62}"
-            title="3-63 chars; lowercase letters, numbers, hyphens; must start alphanumeric"
-            defaultValue={v.slug}
-            onChange={(e) => {
-              setSlugValue(e.target.value);
-              setSlugChangeAcked(false);
-            }}
-            placeholder="my-address-book"
-            className={`${inputClasses} w-full`}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="slug"
+              className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
+            >
+              Link name
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="shrink-0 font-mono text-sm text-zinc-500 dark:text-zinc-400">
+                {urlPrefix}
+              </span>
+              <input
+                id="slug"
+                name="slug"
+                type="text"
+                required
+                pattern="[a-z0-9][a-z0-9\-]{2,62}"
+                title="3-63 chars; lowercase letters, numbers, hyphens; must start alphanumeric"
+                value={slugValue}
+                onChange={(event) => {
+                  setSlugValue(event.target.value);
+                  setSlugChangeAcked(false);
+                }}
+                placeholder="my-address-book"
+                className={`${inputClasses} w-full`}
+              />
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Lowercase letters, numbers, and hyphens. This is the link you share.
-        </p>
+
         {slugChanged ? (
           <div
             role="alert"
-            className="mt-1 flex flex-col gap-2.5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+            className="mt-4 flex flex-col gap-2.5 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
           >
             <p>
               Changing your link immediately breaks the old one — and frees it
@@ -121,45 +131,29 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
               <input
                 type="checkbox"
                 checked={slugChangeAcked}
-                onChange={(e) => setSlugChangeAcked(e.target.checked)}
+                onChange={(event) => setSlugChangeAcked(event.target.checked)}
                 className="size-4 rounded border-amber-400 accent-amber-700 dark:border-amber-700 dark:accent-amber-400"
               />
               I understand
             </label>
           </div>
         ) : null}
-      </div>
+      </section>
 
-      <fieldset className="flex flex-col gap-2.5">
-        <legend className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-          Ask your friends for
-        </legend>
-        {(
-          [
-            ["partner_name", "Ask for partner name"],
-            ["kids_names", "Ask for kids' names"],
-            ["birthday", "Ask for birthday"],
-          ] as const
-        ).map(([name, label]) => (
-          <label
-            key={name}
-            className="flex items-center gap-2.5 text-sm text-zinc-700 dark:text-zinc-300"
-          >
-            <input
-              type="checkbox"
-              name={name}
-              defaultChecked={v[name]}
-              className="size-4 rounded border-zinc-300 accent-zinc-900 dark:border-zinc-700 dark:accent-zinc-50"
-            />
-            {label}
-          </label>
-        ))}
-      </fieldset>
+      <InvitePageConfigurator
+        ownerName={displayName.trim()}
+        publicUrl={`${urlPrefix}${slugValue}`}
+        enabledFields={enabledFields}
+        linkIsLive={!slugChanged}
+        onFieldChange={(name, enabled) =>
+          setEnabledFields((current) => ({ ...current, [name]: enabled }))
+        }
+      />
 
       <button
         type="submit"
         disabled={pending || (slugChanged && !slugChangeAcked)}
-        className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="h-10 rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300 sm:self-end"
       >
         {pending ? "Saving…" : "Save"}
       </button>
