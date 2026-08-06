@@ -35,10 +35,10 @@ test("signs up via magic link and lands on onboarding", async () => {
 });
 
 test("creates a book from the settings form", async () => {
-  await createBook(page, { title: "E2E Owner Book", slug });
+  await createBook(page, { displayName: "E2E Owner", slug });
   await page.goto("/dashboard");
   await expect(
-    page.getByRole("heading", { name: "E2E Owner Book" }),
+    page.getByRole("heading", { name: "Your address book" }),
   ).toBeVisible();
   await expect(page.getByText("No contacts yet")).toBeVisible();
 });
@@ -77,6 +77,21 @@ test("changing the slug requires acknowledging the link-break warning", async ()
   ).toBeVisible();
 
   // Serial journey: the next step expects to start from the dashboard.
+  await page.goto("/dashboard");
+});
+
+test("updates the owner name shown on the public invite page", async () => {
+  await page.goto("/dashboard/settings");
+  await page.locator("#display_name").fill("Updated Owner");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status")).toHaveText("Saved.");
+
+  await page.goto(`/b/${slug}-moved`);
+  await expect(
+    page.getByRole("heading", {
+      name: "Add your address to Updated Owner's address book",
+    }),
+  ).toBeVisible();
   await page.goto("/dashboard");
 });
 

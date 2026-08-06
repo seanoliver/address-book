@@ -48,7 +48,7 @@ export type EnabledFields = {
 export async function seedBook(opts: {
   ownerId: string;
   slug: string;
-  title: string;
+  displayName?: string;
   enabledFields?: EnabledFields;
 }): Promise<string> {
   const enabled: EnabledFields = opts.enabledFields ?? {
@@ -56,9 +56,13 @@ export async function seedBook(opts: {
     kids_names: true,
     birthday: true,
   };
+  await db`
+    update public.profiles
+    set display_name = ${opts.displayName ?? "E2E Owner"}
+    where id = ${opts.ownerId}`;
   const rows = await db`
-    insert into public.books (owner_id, slug, title, enabled_fields)
-    values (${opts.ownerId}, ${opts.slug}, ${opts.title}, ${db.json(enabled)})
+    insert into public.books (owner_id, slug, enabled_fields)
+    values (${opts.ownerId}, ${opts.slug}, ${db.json(enabled)})
     returning id`;
   return rows[0].id as string;
 }

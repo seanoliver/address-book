@@ -36,7 +36,7 @@ export default async function DashboardPage({
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {book.title}
+          Your address book
         </h1>
         <div className="flex items-center gap-2">
           {/* Route handler streams the CSV; plain <a> so the browser downloads it. */}

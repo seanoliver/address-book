@@ -50,7 +50,6 @@ const tokenDataSchema = z.object({
     birthday: z.boolean(),
   }),
   owner_name: z.string(),
-  book_title: z.string(),
 });
 
 /**
@@ -106,10 +105,7 @@ export default async function TokenUpdatePage({
   const parsed = tokenDataSchema.safeParse(data);
   if (!parsed.success) return <InvalidLinkNotice />;
 
-  const { contact, enabled_fields, owner_name, book_title } = parsed.data;
-  // Owners without a profile name fall back to their book title (same rule
-  // as the request email).
-  const ownerLabel = owner_name.trim() || book_title;
+  const { contact, enabled_fields, owner_name: ownerLabel } = parsed.data;
 
   // PII: a disabled field's stored value must not reach the client AT ALL —
   // form props are embedded in the RSC payload, so passing it would leak it
@@ -142,8 +138,8 @@ export default async function TokenUpdatePage({
           Update your address for {ownerLabel}
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {book_title} — check your details below, fix anything that&apos;s
-          out of date, and hit update. Only {ownerLabel} sees what you enter.
+          Check your details below, fix anything that&apos;s out of date, and hit
+          update. Only {ownerLabel} can see what you enter.
         </p>
 
         <RecipientForm

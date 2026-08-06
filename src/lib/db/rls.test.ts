@@ -32,8 +32,8 @@ describe("withRls", () => {
         (${U1}, 'rlstest1@test.dev'), (${U2}, 'rlstest2@test.dev')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
-      insert into public.books (id, owner_id, slug, title)
-      values (${B1}, ${U1}, 'rls-test-book', 'RLS Test')
+      insert into public.books (id, owner_id, slug)
+      values (${B1}, ${U1}, 'rls-test-book')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
       insert into public.contacts (id, book_id, full_name)

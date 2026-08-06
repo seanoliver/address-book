@@ -1,12 +1,12 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(18);
 
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000a1', 'own@test.dev');
-update public.profiles set full_name = 'Sean O' where id = '00000000-0000-0000-0000-0000000000a1';
-insert into public.books (id, owner_id, slug, title, enabled_fields) values
+update public.profiles set display_name = 'Sean O' where id = '00000000-0000-0000-0000-0000000000a1';
+insert into public.books (id, owner_id, slug, enabled_fields) values
   ('10000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a1',
-   'seans-book', 'Sean''s Book', '{"partner_name": true, "kids_names": false, "birthday": true}');
+   'seans-book', '{"partner_name": true, "kids_names": false, "birthday": true}');
 insert into public.contacts (id, book_id, full_name, email, city) values
   ('20000000-0000-0000-0000-0000000000a1', '10000000-0000-0000-0000-0000000000a1',
    'Alice A', 'alice@test.dev', 'Oldtown');
@@ -22,6 +22,8 @@ select ok((private.get_contact_for_token('testtoken')) -> 'contact' ->> 'full_na
   'valid token returns contact');
 select ok((private.get_contact_for_token('testtoken')) ->> 'owner_name' = 'Sean O',
   'valid token returns owner name');
+select ok(not (private.get_contact_for_token('testtoken') ? 'book_title'),
+  'token contract returns no address-book title');
 select ok(private.get_contact_for_token('expiredtoken') is null, 'expired token returns null');
 select ok(private.get_contact_for_token('nosuchtoken') is null, 'unknown token returns null');
 

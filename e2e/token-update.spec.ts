@@ -38,7 +38,7 @@ test.beforeAll(async ({ browser }) => {
   const bookId = await seedBook({
     ownerId,
     slug,
-    title: "Token E2E Book",
+    displayName: "Token Owner",
     enabledFields: { partner_name: true, kids_names: false, birthday: true },
   });
   const contactId = await seedContact({

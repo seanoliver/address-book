@@ -1,10 +1,13 @@
 import { requireUser } from "@/lib/auth";
-import { getOwnBook } from "@/lib/queries/books";
+import { getOwnBook, getOwnProfile } from "@/lib/queries/books";
 import { BookForm } from "./book-form";
 
 export default async function SettingsPage() {
   const claims = await requireUser();
-  const book = await getOwnBook(claims);
+  const [book, profile] = await Promise.all([
+    getOwnBook(claims),
+    getOwnProfile(claims),
+  ]);
 
   const urlPrefix = `${process.env.APP_URL}/b/`;
 
@@ -16,8 +19,8 @@ export default async function SettingsPage() {
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           {book
-            ? "Update your book's name, link, and the fields friends are asked for."
-            : "Name your book and pick a link to share with friends."}
+            ? "Update your name, link, and the fields friends are asked for."
+            : "Add your name and pick a link to share with friends."}
         </p>
 
         {book ? (
@@ -37,12 +40,12 @@ export default async function SettingsPage() {
           urlPrefix={urlPrefix}
           currentSlug={book?.slug ?? null}
           defaults={{
-            title: book?.title ?? "",
+            display_name: profile?.displayName ?? "",
             slug: book?.slug ?? "",
-            // New books default to all fields enabled (matches the DB default).
-            partner_name: book?.enabledFields.partner_name ?? true,
-            kids_names: book?.enabledFields.kids_names ?? true,
-            birthday: book?.enabledFields.birthday ?? true,
+            // New books default to optional fields disabled (matches the DB).
+            partner_name: book?.enabledFields.partner_name ?? false,
+            kids_names: book?.enabledFields.kids_names ?? false,
+            birthday: book?.enabledFields.birthday ?? false,
           }}
         />
       </div>

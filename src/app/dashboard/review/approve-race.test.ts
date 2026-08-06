@@ -93,8 +93,8 @@ describe("review approve concurrency gate", () => {
       insert into auth.users (id, email) values (${U}, 'racetest@test.dev')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
-      insert into public.books (id, owner_id, slug, title)
-      values (${B}, ${U}, 'race-test-book', 'Race Test')`);
+      insert into public.books (id, owner_id, slug)
+      values (${B}, ${U}, 'race-test-book')`);
     await dbAdmin.execute(sql`
       insert into public.contacts (id, book_id, full_name, email)
       values (${C_DUP}, ${B}, 'Existing Dup', 'dup@race.test')`);

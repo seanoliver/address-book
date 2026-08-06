@@ -57,8 +57,8 @@ describe("POST /api/webhooks/resend", () => {
       insert into auth.users (id, email) values (${U1}, 'webhooktest@test.dev')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
-      insert into public.books (id, owner_id, slug, title)
-      values (${B1}, ${U1}, 'webhook-test-book', 'Webhook Test Book')
+      insert into public.books (id, owner_id, slug)
+      values (${B1}, ${U1}, 'webhook-test-book')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
       insert into public.contacts (id, book_id, full_name, email)

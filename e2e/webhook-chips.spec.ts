@@ -66,7 +66,7 @@ test.beforeAll(async ({ browser }) => {
   const bookId = await seedBook({
     ownerId,
     slug: uniqueSlug("webhook-book"),
-    title: "Webhook E2E Book",
+    displayName: "Webhook Owner",
   });
   const contactId = await seedContact({
     bookId,

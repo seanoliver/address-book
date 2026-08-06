@@ -64,7 +64,6 @@ export async function requestAddresses(
   let scope:
     | {
         bookId: string;
-        bookTitle: string;
         ownerName: string;
         rows: { id: string; email: string | null }[];
       }
@@ -72,14 +71,14 @@ export async function requestAddresses(
   try {
     scope = await withRls(claims, async (tx) => {
       const [book] = await tx
-        .select({ id: books.id, title: books.title })
+        .select({ id: books.id })
         .from(books)
         .where(eq(books.ownerId, claims.sub))
         .limit(1);
       if (!book) return undefined;
 
       const [profile] = await tx
-        .select({ fullName: profiles.fullName })
+        .select({ displayName: profiles.displayName })
         .from(profiles)
         .where(eq(profiles.id, claims.sub))
         .limit(1);
@@ -96,10 +95,7 @@ export async function requestAddresses(
 
       return {
         bookId: book.id,
-        bookTitle: book.title,
-        // Owner display name: profile full_name, falling back to the book
-        // title for owners who never set one.
-        ownerName: profile?.fullName.trim() || book.title,
+        ownerName: profile?.displayName.trim() ?? "",
         rows,
       };
     });
@@ -156,7 +152,6 @@ export async function requestAddresses(
       to: target.email,
       ...addressRequestEmail({
         ownerName: scope.ownerName,
-        bookTitle: scope.bookTitle,
         updateUrl: `${appUrl}/u/${token}`,
       }),
     })),

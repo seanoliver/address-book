@@ -47,7 +47,7 @@ async function fetchMagicLink(email: string): Promise<string> {
 /**
  * Sign up (or in) through the REAL /login form: request a magic link, fetch
  * it from Mailpit, and visit it. Lands on /dashboard — or /dashboard/settings
- * for a brand-new user (onboarding redirect: no book yet).
+ * for a brand-new user (the current pre-onboarding redirect).
  */
 export async function signupAndLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");
@@ -65,14 +65,14 @@ export async function signupAndLogin(page: Page, email: string): Promise<void> {
 export async function createBook(
   page: Page,
   opts: {
-    title: string;
+    displayName: string;
     slug: string;
-    /** Omitted toggles keep the form defaults (all enabled for a new book). */
+    /** Omitted toggles keep the form defaults (all disabled for a new book). */
     toggles?: Partial<Record<"partner_name" | "kids_names" | "birthday", boolean>>;
   },
 ): Promise<void> {
   await page.goto("/dashboard/settings");
-  await page.locator("#title").fill(opts.title);
+  await page.locator("#display_name").fill(opts.displayName);
   await page.locator("#slug").fill(opts.slug);
   for (const [name, on] of Object.entries(opts.toggles ?? {})) {
     await page.locator(`input[name="${name}"]`).setChecked(on);

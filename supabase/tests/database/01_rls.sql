@@ -1,16 +1,16 @@
 begin;
 create schema if not exists tests;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(27);
 
 -- fixtures: two users, two books, one contact each
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-000000000001', 'owner1@test.dev'),
   ('00000000-0000-0000-0000-000000000002', 'owner2@test.dev');
 
-insert into public.books (id, owner_id, slug, title) values
-  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'book-one', 'Book One'),
-  ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'book-two', 'Book Two');
+insert into public.books (id, owner_id, slug) values
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'book-one'),
+  ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', 'book-two');
 
 insert into public.contacts (id, book_id, full_name, email) values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'Alice A', 'alice@test.dev'),
@@ -35,6 +35,19 @@ begin
   perform set_config('request.jwt.claim.sub', uid, true);
   execute 'set local role authenticated';
 end $$;
+
+-- title-free identity and new-book defaults
+select has_column('public', 'profiles', 'display_name',
+  'profiles expose display_name');
+select hasnt_column('public', 'profiles', 'full_name',
+  'profiles no longer expose full_name');
+select hasnt_column('public', 'books', 'title',
+  'address books have no independent title');
+select results_eq(
+  $$ select enabled_fields from public.books
+     where id = '10000000-0000-0000-0000-000000000001' $$,
+  $$ values ('{"partner_name": false, "kids_names": false, "birthday": false}'::jsonb) $$,
+  'new address books default all optional invite fields off');
 
 -- 1. structural guardrail: every public table has RLS enabled
 select is_empty(

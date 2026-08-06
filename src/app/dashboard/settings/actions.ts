@@ -1,15 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
-import { books } from "@/lib/db/schema";
+import { books, profiles } from "@/lib/db/schema";
 import { logDbError } from "@/lib/log";
 import { bookSchema } from "@/lib/validation/book";
 
 export type BookFormValues = {
-  title: string;
+  display_name: string;
   slug: string;
   partner_name: boolean;
   kids_names: boolean;
@@ -34,7 +35,7 @@ export async function saveBook(
   const claims = await requireUser();
 
   const submitted: BookFormValues = {
-    title: String(formData.get("title") ?? ""),
+    display_name: String(formData.get("display_name") ?? ""),
     slug: String(formData.get("slug") ?? ""),
     // Unchecked checkboxes are absent from FormData; checked ones post "on".
     partner_name: formData.get("partner_name") === "on",
@@ -49,21 +50,27 @@ export async function saveBook(
       values: submitted,
     };
   }
-  const { title, slug, partner_name, kids_names, birthday } = parsed.data;
+  const { display_name, slug, partner_name, kids_names, birthday } = parsed.data;
   const enabledFields = { partner_name, kids_names, birthday };
 
   try {
-    await withRls(claims, (tx) =>
-      tx
+    await withRls(claims, async (tx) => {
+      // Profile and book are one settings operation: neither public identity
+      // nor field configuration can be left half-updated.
+      await tx
+        .update(profiles)
+        .set({ displayName: display_name })
+        .where(eq(profiles.id, claims.sub));
+      await tx
         .insert(books)
-        .values({ ownerId: claims.sub, slug, title, enabledFields })
+        .values({ ownerId: claims.sub, slug, enabledFields })
         .onConflictDoUpdate({
           // one book per owner (unique index books_one_per_owner) — an
           // existing book is updated in place, so saving is idempotent.
           target: books.ownerId,
-          set: { slug, title, enabledFields },
-        }),
-    );
+          set: { slug, enabledFields },
+        });
+    });
   } catch (err) {
     if (isUniqueViolation(err, "books_slug_key")) {
       return { error: "That link name is taken", values: submitted };

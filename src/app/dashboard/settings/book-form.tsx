@@ -55,19 +55,20 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
 
       <div className="flex flex-col gap-1.5">
         <label
-          htmlFor="title"
+          htmlFor="display_name"
           className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
         >
-          Book title
+          Your name
         </label>
         <input
-          id="title"
-          name="title"
+          id="display_name"
+          name="display_name"
           type="text"
           required
-          maxLength={120}
-          defaultValue={v.title}
-          placeholder="Our Address Book"
+          maxLength={200}
+          autoComplete="name"
+          defaultValue={v.display_name}
+          placeholder="Sean"
           className={inputClasses}
         />
       </div>
