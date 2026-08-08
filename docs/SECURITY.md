@@ -84,7 +84,7 @@ Update links (`/u/<token>`) are bearer credentials, treated accordingly (`src/li
 
 - Invalid, expired, and already-used tokens all render the **same generic page** — no distinction an attacker can use to probe for live tokens.
 - Permalink submits return an **identical response** (and take the same code path) whether or not the submitted email matches an existing contact. A match surfaces only to the owner, in the review queue.
-- The permalink page itself (`src/lib/queries/public-book.ts`) selects only the book title, owner display name, and enabled-field flags — never ids, counts, or contact data; the select's key set is asserted in tests so a widened query fails CI.
+- The permalink page itself (`src/lib/queries/public-book.ts`) selects only the owner display name and enabled-field flags — never ids, counts, contact data, or profile details; the select's key set is asserted in tests so a widened query fails CI.
 - Auth failures on `/login` show one generic error, never Supabase's detail.
 
 ## Rate limits

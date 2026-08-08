@@ -2,7 +2,7 @@
 
 An open-source, self-hostable address book for people who mail things to people — holiday cards being the canonical use case.
 
-You keep a list of contacts. Each year (or whenever), you email everyone a unique, expiring link where they confirm or update **their own** address — no account needed on their end. You also get a shareable permalink where people can add themselves to your book, write-only: visitors can never see what's in it. When it's time to print labels, export everything as CSV.
+Each owner has one personal address book, identified by their display name rather than a separate book title. Each year (or whenever), you email contacts a unique, expiring link where they confirm or update **their own** address — no account needed on their end. You also get a shareable permalink where people can add themselves to your book, write-only: visitors can never see what's in it. When it's time to print labels, export everything as CSV.
 
 Security is the top design priority: this app stores home addresses, and leaking them is the failure mode the architecture is built around. Read [docs/SECURITY.md](docs/SECURITY.md) for the full security model.
 
@@ -16,7 +16,8 @@ Security is the top design priority: this app stores home addresses, and leaking
 - **CSV import** (header-alias tolerant, previewed in the browser) and **CSV export** (RFC 4180, formula-injection safe, round-trips through import)
 - **Audit trail** per contact — every owner edit, token update, and approved submission is recorded
 - **Passwordless auth** — magic link or Google, via Supabase Auth
-- Configurable optional fields per book (partner name, kids' names, birthday)
+- **Guided onboarding** — add your display name, edit an email-derived link suggestion, and preview the invite page before publishing it
+- **Live invite-page configuration** — toggle partner name, kids' names, and birthday while seeing the same inert preview in onboarding and Settings
 
 ## Screenshots
 
