@@ -1,8 +1,21 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 // Next 16 renamed the root `middleware` file convention to `proxy`.
 export default async function proxy(request: NextRequest) {
+  const fallbackCode = request.nextUrl.searchParams.get("code");
+
+  // Supabase falls back to its configured Site URL when an OAuth redirect URL
+  // is missing from the hosted allow-list. Do not strand a valid PKCE code on
+  // the public homepage: hand it to the canonical confirmation endpoint.
+  if (request.nextUrl.pathname === "/" && fallbackCode) {
+    const confirmationUrl = request.nextUrl.clone();
+    confirmationUrl.pathname = "/auth/confirm";
+    confirmationUrl.search = "";
+    confirmationUrl.searchParams.set("code", fallbackCode);
+    return NextResponse.redirect(confirmationUrl);
+  }
+
   return updateSession(request);
 }
 
