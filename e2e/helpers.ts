@@ -46,8 +46,8 @@ async function fetchMagicLink(email: string): Promise<string> {
 
 /**
  * Sign up (or in) through the REAL /login form: request a magic link, fetch
- * it from Mailpit, and visit it. Lands on /dashboard — or /dashboard/settings
- * for a brand-new user (onboarding redirect: no book yet).
+ * it from Mailpit, and visit it. Existing owners land on /dashboard; a new
+ * owner is redirected into /onboarding.
  */
 export async function signupAndLogin(page: Page, email: string): Promise<void> {
   await page.goto("/login");
@@ -58,21 +58,44 @@ export async function signupAndLogin(page: Page, email: string): Promise<void> {
   ).toBeVisible();
   const link = await fetchMagicLink(email);
   await page.goto(link);
-  await expect(page).toHaveURL(/\/dashboard(\/settings)?$/);
+  await expect(page).toHaveURL(/\/(dashboard|onboarding)$/);
 }
 
-/** Create (or update) the signed-in owner's book through the real settings form. */
+/** Create (or update) the signed-in owner's book through the real UI. */
 export async function createBook(
   page: Page,
   opts: {
-    title: string;
+    displayName: string;
     slug: string;
-    /** Omitted toggles keep the form defaults (all enabled for a new book). */
+    /** Omitted toggles keep the form defaults (all disabled for a new book). */
     toggles?: Partial<Record<"partner_name" | "kids_names" | "birthday", boolean>>;
   },
 ): Promise<void> {
   await page.goto("/dashboard/settings");
-  await page.locator("#title").fill(opts.title);
+
+  if (/\/onboarding$/.test(page.url())) {
+    await page.locator("#display_name").fill(opts.displayName);
+    await page.locator("#slug").fill(opts.slug);
+    await page.getByRole("button", { name: "Continue to preview" }).click();
+    await expect(page.getByText("Step 2 of 2")).toBeVisible();
+    for (const [name, on] of Object.entries(opts.toggles ?? {})) {
+      const labels = {
+        partner_name: "Partner name",
+        kids_names: "Kids' names",
+        birthday: "Birthday",
+      } as const;
+      await page
+        .getByRole("checkbox", {
+          name: labels[name as keyof typeof labels],
+        })
+        .setChecked(on);
+    }
+    await page.getByRole("button", { name: "Create my address book" }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
+    return;
+  }
+
+  await page.locator("#display_name").fill(opts.displayName);
   await page.locator("#slug").fill(opts.slug);
   for (const [name, on] of Object.entries(opts.toggles ?? {})) {
     await page.locator(`input[name="${name}"]`).setChecked(on);

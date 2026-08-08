@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { dbAdmin } from "@/lib/db/admin";
-import { getPublicBook, SLUG_SHAPE } from "./public-book";
+import {
+  getPublicBook,
+  isBookSlugAvailable,
+  SLUG_SHAPE,
+} from "./public-book";
 
 // Fixed ids keep re-runs idempotent (same pattern as rls.test.ts).
 const U1 = "00000000-0000-0000-0000-00000000c001";
@@ -29,29 +33,30 @@ describe("getPublicBook", () => {
       insert into auth.users (id, email) values (${U1}, 'publicbook@test.dev')
       on conflict (id) do nothing`);
     await dbAdmin.execute(sql`
-      update public.profiles set full_name = 'Public Owner' where id = ${U1}`);
+      update public.profiles set display_name = 'Public Owner' where id = ${U1}`);
     await dbAdmin.execute(sql`
-      insert into public.books (id, owner_id, slug, title, enabled_fields)
-      values (${B1}, ${U1}, ${SLUG}, 'Public Test Book',
+      insert into public.books (id, owner_id, slug, enabled_fields)
+      values (${B1}, ${U1}, ${SLUG},
               '{"partner_name": true, "kids_names": false, "birthday": true}')
       on conflict (id) do update set slug = excluded.slug,
-        title = excluded.title, enabled_fields = excluded.enabled_fields`);
+        enabled_fields = excluded.enabled_fields`);
   });
 
-  it("returns EXACTLY title, ownerName, enabledFields — nothing else", async () => {
+  it("returns EXACTLY ownerName and enabledFields — nothing else", async () => {
     const book = await getPublicBook(SLUG);
     expect(book).not.toBeNull();
     // Key-set assertion: a widened select (id, counts, ...) fails here.
-    expect(Object.keys(book!).sort()).toEqual([
-      "enabledFields",
-      "ownerName",
-      "title",
-    ]);
+    expect(Object.keys(book!).sort()).toEqual(["enabledFields", "ownerName"]);
     expect(book).toEqual({
-      title: "Public Test Book",
       ownerName: "Public Owner",
       enabledFields: { partner_name: true, kids_names: false, birthday: true },
     });
+  });
+
+  it("reports public link availability without returning book data", async () => {
+    await expect(isBookSlugAvailable(SLUG)).resolves.toBe(false);
+    await expect(isBookSlugAvailable("available-book-link")).resolves.toBe(true);
+    await expect(isBookSlugAvailable("Bad Link")).resolves.toBe(false);
   });
 
   it("returns null for an unknown slug", async () => {

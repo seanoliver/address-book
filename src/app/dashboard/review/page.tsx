@@ -140,7 +140,7 @@ export default async function ReviewPage() {
   const claims = await requireUser();
   const book = await getOwnBook(claims);
   // Onboarding: no book yet → set one up first (same rule as the dashboard).
-  if (!book) redirect("/dashboard/settings");
+  if (!book) redirect("/onboarding");
 
   const pending = await listPendingSubmissions(claims);
   const cards = pending.map((item) => toCardModel(item, book.enabledFields));

@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { BOOK_LINK_SHAPE } from "@/lib/book-link";
 
 export const bookSchema = z.object({
-  title: z.string().trim().min(1).max(120),
-  slug: z.string().regex(/^[a-z0-9][a-z0-9-]{2,62}$/,
+  display_name: z.string().trim().min(1).max(200),
+  slug: z.string().regex(BOOK_LINK_SHAPE,
     "3-63 chars; lowercase letters, numbers, hyphens; must start alphanumeric"),
   partner_name: z.boolean(),
   kids_names: z.boolean(),

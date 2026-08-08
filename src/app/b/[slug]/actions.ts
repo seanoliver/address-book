@@ -42,16 +42,13 @@ function readForm(formData: FormData): TokenUpdateValues {
 async function notifyOwner(slug: string): Promise<void> {
   try {
     const rows = await dbAdmin.execute(
-      sql`select u.email as email, b.title as title
+      sql`select u.email as email
           from public.books b
           join auth.users u on u.id = b.owner_id
           where b.slug = ${slug}`,
     );
     const email = rows[0]?.email;
-    const title = rows[0]?.title;
-    if (typeof email !== "string" || !email || typeof title !== "string") {
-      return;
-    }
+    if (typeof email !== "string" || !email) return;
     const appUrl = process.env.APP_URL;
     if (!appUrl) {
       console.error("[pb] [notifyOwner] APP_URL is not set");
@@ -62,7 +59,6 @@ async function notifyOwner(slug: string): Promise<void> {
     await sendNotification({
       to: email,
       ...submissionNotificationEmail({
-        bookTitle: title,
         reviewUrl: `${appUrl}/dashboard/review`,
       }),
     });

@@ -29,7 +29,14 @@ async function submitAsVisitor(
   const page = await context.newPage();
   await page.goto(`/b/${slug}`);
   await expect(
-    page.getByRole("heading", { name: /Add your address to/ }),
+    page.getByRole("heading", {
+      name: "Add your address to Permalink Owner's address book",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Fill in your details below. Only Permalink Owner can see what you submit.",
+    ),
   ).toBeVisible();
   // Write-only page: the form never pre-fills anything.
   await expect(page.locator("#full_name")).toHaveValue("");
@@ -53,7 +60,7 @@ test.beforeAll(async ({ browser }) => {
 
   ownerPage = await browser.newPage();
   await signupAndLogin(ownerPage, ownerEmail);
-  await createBook(ownerPage, { title: "Permalink E2E Book", slug });
+  await createBook(ownerPage, { displayName: "Permalink Owner", slug });
 });
 
 test.afterAll(async () => {

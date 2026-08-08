@@ -2,17 +2,32 @@ import { describe, it, expect } from "vitest";
 import { bookSchema } from "./book";
 
 describe("bookSchema", () => {
-  it("accepts valid input", () => {
-    expect(bookSchema.safeParse({
-      title: "Sean's Book", slug: "sean-oliver",
-      partner_name: true, kids_names: false, birthday: true,
-    }).success).toBe(true);
+  const valid = {
+    display_name: "Sean",
+    slug: "sean-oliver",
+    partner_name: true,
+    kids_names: false,
+    birthday: true,
+  };
+
+  it("accepts a first name and trims it", () => {
+    expect(bookSchema.parse({ ...valid, display_name: "  Sean  " })).toEqual(valid);
   });
+
   it.each(["ab", "-bad", "Bad Slug", "a".repeat(64), "sean_oliver"])(
-    "rejects slug %s", (slug) => {
-      expect(bookSchema.safeParse({ title: "T", slug, partner_name: true, kids_names: true, birthday: true }).success).toBe(false);
-    });
-  it("rejects empty title", () => {
-    expect(bookSchema.safeParse({ title: "", slug: "good-slug", partner_name: true, kids_names: true, birthday: true }).success).toBe(false);
+    "rejects slug %s",
+    (slug) => {
+      expect(bookSchema.safeParse({ ...valid, slug }).success).toBe(false);
+    },
+  );
+
+  it.each(["", "   "])("rejects empty owner name %j", (display_name) => {
+    expect(bookSchema.safeParse({ ...valid, display_name }).success).toBe(false);
+  });
+
+  it("rejects an owner name over 200 characters", () => {
+    expect(
+      bookSchema.safeParse({ ...valid, display_name: "a".repeat(201) }).success,
+    ).toBe(false);
   });
 });

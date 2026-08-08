@@ -7,7 +7,7 @@ const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
 export const profiles = pgTable("profiles", {
   id: uuid("id").primaryKey(),
-  fullName: text("full_name").notNull().default(""),
+  displayName: text("display_name").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -15,10 +15,9 @@ export const books = pgTable("books", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerId: uuid("owner_id").notNull(),
   slug: text("slug").notNull(),
-  title: text("title").notNull(),
   enabledFields: jsonb("enabled_fields").notNull().$type<{
     partner_name: boolean; kids_names: boolean; birthday: boolean;
-  }>().default({ partner_name: true, kids_names: true, birthday: true }),
+  }>().default({ partner_name: false, kids_names: false, birthday: false }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -1,15 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { requireUser } from "@/lib/auth";
 import { withRls } from "@/lib/db";
 import { isUniqueViolation } from "@/lib/db/errors";
-import { books } from "@/lib/db/schema";
+import { books, profiles } from "@/lib/db/schema";
 import { logDbError } from "@/lib/log";
+import { getOwnBook } from "@/lib/queries/books";
 import { bookSchema } from "@/lib/validation/book";
 
 export type BookFormValues = {
-  title: string;
+  display_name: string;
   slug: string;
   partner_name: boolean;
   kids_names: boolean;
@@ -32,9 +35,12 @@ export async function saveBook(
   formData: FormData,
 ): Promise<SaveBookState> {
   const claims = await requireUser();
+  // Settings updates an established address book; onboarding is the only
+  // creation path, including for direct invocations of this server action.
+  if (!(await getOwnBook(claims))) redirect("/onboarding");
 
   const submitted: BookFormValues = {
-    title: String(formData.get("title") ?? ""),
+    display_name: String(formData.get("display_name") ?? ""),
     slug: String(formData.get("slug") ?? ""),
     // Unchecked checkboxes are absent from FormData; checked ones post "on".
     partner_name: formData.get("partner_name") === "on",
@@ -49,21 +55,26 @@ export async function saveBook(
       values: submitted,
     };
   }
-  const { title, slug, partner_name, kids_names, birthday } = parsed.data;
+  const { display_name, slug, partner_name, kids_names, birthday } = parsed.data;
   const enabledFields = { partner_name, kids_names, birthday };
 
   try {
-    await withRls(claims, (tx) =>
-      tx
-        .insert(books)
-        .values({ ownerId: claims.sub, slug, title, enabledFields })
-        .onConflictDoUpdate({
-          // one book per owner (unique index books_one_per_owner) — an
-          // existing book is updated in place, so saving is idempotent.
-          target: books.ownerId,
-          set: { slug, title, enabledFields },
-        }),
-    );
+    await withRls(claims, async (tx) => {
+      // Profile and book are one settings operation: neither public identity
+      // nor field configuration can be left half-updated. Update the book
+      // first and fail the transaction if it disappeared after the guard.
+      const updated = await tx
+        .update(books)
+        .set({ slug, enabledFields })
+        .where(eq(books.ownerId, claims.sub))
+        .returning({ id: books.id });
+      if (updated.length === 0) throw new Error("Address book not found");
+
+      await tx
+        .update(profiles)
+        .set({ displayName: display_name })
+        .where(eq(profiles.id, claims.sub));
+    });
   } catch (err) {
     if (isUniqueViolation(err, "books_slug_key")) {
       return { error: "That link name is taken", values: submitted };

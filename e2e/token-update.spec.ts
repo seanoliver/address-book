@@ -38,9 +38,16 @@ test.beforeAll(async ({ browser }) => {
   const bookId = await seedBook({
     ownerId,
     slug,
-    title: "Token E2E Book",
-    enabledFields: { partner_name: true, kids_names: false, birthday: true },
+    displayName: "Token Owner",
+    enabledFields: { partner_name: true, kids_names: true, birthday: true },
   });
+
+  // Configure the personal update form through the real Settings surface.
+  await ownerPage.goto("/dashboard/settings");
+  await ownerPage.getByRole("checkbox", { name: "Kids' names" }).uncheck();
+  await ownerPage.getByRole("button", { name: "Save" }).click();
+  await expect(ownerPage.getByRole("status")).toHaveText("Saved.");
+
   const contactId = await seedContact({
     bookId,
     fullName: "Tess Token",
