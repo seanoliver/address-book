@@ -1,8 +1,8 @@
 import { type TokenUpdateValues } from "@/lib/validation/contact";
 
 const inputClasses =
-  "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 disabled:cursor-default disabled:opacity-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClasses = "text-sm font-medium text-zinc-900 dark:text-zinc-50";
+  "h-11 rounded-lg border border-input bg-card/70 px-3.5 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25 disabled:cursor-default disabled:opacity-100";
+const labelClasses = "text-sm font-medium text-foreground/90";
 
 export type EnabledFields = {
   partner_name: boolean;
@@ -39,7 +39,14 @@ type FieldProps = {
   hint?: string;
 };
 
-function Field({ name, label, value, type = "text", maxLength, hint }: FieldProps) {
+function Field({
+  name,
+  label,
+  value,
+  type = "text",
+  maxLength,
+  hint,
+}: FieldProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={name} className={labelClasses}>
@@ -53,9 +60,7 @@ function Field({ name, label, value, type = "text", maxLength, hint }: FieldProp
         defaultValue={value}
         className={inputClasses}
       />
-      {hint ? (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</p>
-      ) : null}
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -109,7 +114,12 @@ export function RecipientFields({
         hint={emailHint}
       />
       {enabled.birthday ? (
-        <Field name="birthday" label="Birthday" value={v.birthday} type="date" />
+        <Field
+          name="birthday"
+          label="Birthday"
+          value={v.birthday}
+          type="date"
+        />
       ) : null}
       <Field
         name="address_line1"

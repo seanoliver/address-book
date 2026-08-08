@@ -113,10 +113,12 @@ export default async function TokenUpdatePage({
   // hidden.
   const defaults: TokenUpdateValues = {
     full_name: contact.full_name ?? "",
-    partner_name: enabled_fields.partner_name ? contact.partner_name ?? "" : "",
-    kids_names: enabled_fields.kids_names ? contact.kids_names ?? "" : "",
+    partner_name: enabled_fields.partner_name
+      ? (contact.partner_name ?? "")
+      : "",
+    kids_names: enabled_fields.kids_names ? (contact.kids_names ?? "") : "",
     email: contact.email ?? "",
-    birthday: enabled_fields.birthday ? contact.birthday ?? "" : "",
+    birthday: enabled_fields.birthday ? (contact.birthday ?? "") : "",
     address_line1: contact.address_line1 ?? "",
     address_line2: contact.address_line2 ?? "",
     city: contact.city ?? "",
@@ -133,13 +135,13 @@ export default async function TokenUpdatePage({
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <div className="rounded-xl border border-border bg-card p-8 shadow-sm ">
+        <h1 className="font-serif text-2xl leading-tight text-foreground">
           Update your address for {ownerLabel}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Check your details below, fix anything that&apos;s out of date, and hit
-          update. Only {ownerLabel} can see what you enter.
+        <p className="mt-1 text-sm text-muted-foreground">
+          Check your details below, fix anything that&apos;s out of date, and
+          hit update. Only {ownerLabel} can see what you enter.
         </p>
 
         <RecipientForm

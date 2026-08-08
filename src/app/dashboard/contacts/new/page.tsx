@@ -13,11 +13,11 @@ export default async function NewContactPage() {
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <div className="rounded-xl border border-border bg-card p-8 shadow-sm ">
+        <h1 className="font-serif text-2xl leading-tight text-foreground">
           Add a contact
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Only the name is required — you can fill in the rest later, or let
           your friend do it.
         </p>

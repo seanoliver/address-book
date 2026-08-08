@@ -30,7 +30,7 @@ const chipBase =
 const chipStyles = {
   updated:
     "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200",
-  none: "border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400",
+  none: "border-border bg-secondary/50 text-muted-foreground   ",
   sent: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200",
   delivered:
     "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200",
@@ -56,14 +56,16 @@ function StatusChip({ row }: { row: DashboardRow }) {
   // "Updated" (recipient confirmed/changed details after our last send)
   // outranks the raw delivery status in the UI.
   const key = row.updatedAfterSend ? "updated" : row.sendStatus;
-  return <span className={`${chipBase} ${chipStyles[key]}`}>{chipLabels[key]}</span>;
+  return (
+    <span className={`${chipBase} ${chipStyles[key]}`}>{chipLabels[key]}</span>
+  );
 }
 
 const thClasses =
-  "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400";
-const tdClasses = "px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300";
+  "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+const tdClasses = "px-4 py-3 text-sm text-foreground/80";
 const buttonClasses =
-  "inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800";
+  "inline-flex h-9 items-center rounded-lg border border-input bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50  ";
 
 /**
  * Ids are captured when the dialog opens so the send targets exactly what the
@@ -177,9 +179,7 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
           Send to all shown
         </button>
         {isPending ? (
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
-            Sending…
-          </span>
+          <span className="text-sm text-muted-foreground">Sending…</span>
         ) : null}
       </div>
 
@@ -188,9 +188,9 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
           role="dialog"
           aria-modal="false"
           aria-label="Confirm address request"
-          className="mt-4 rounded-xl border border-zinc-300 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-950"
+          className="mt-4 rounded-xl border border-input bg-card p-4 shadow-sm  "
         >
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="text-sm text-foreground/80">
             Send address requests to{" "}
             <strong>
               {confirm.mode === "shown"
@@ -208,7 +208,7 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
               type="button"
               disabled={confirm.sendable === 0 || isPending}
               onClick={() => fire({ contactIds: confirm.ids })}
-              className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:cursor-not-allowed disabled:opacity-50 "
             >
               Confirm and send
             </button>
@@ -223,9 +223,9 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
         </div>
       ) : null}
 
-      <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-card shadow-sm ">
         <table className="w-full min-w-[40rem]" aria-label="Contacts">
-          <thead className="border-b border-zinc-200 dark:border-zinc-800">
+          <thead className="border-b border-border ">
             <tr>
               <th scope="col" className="w-10 px-4 py-2.5">
                 <input
@@ -236,7 +236,7 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
                   onChange={() =>
                     setSelected(allSelected ? new Set() : new Set(emailableIds))
                   }
-                  className="size-4 accent-zinc-900 dark:accent-zinc-50"
+                  className="size-4 accent-primary"
                 />
               </th>
               <th scope="col" className={thClasses}>
@@ -259,7 +259,7 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+          <tbody className="divide-y divide-border/60">
             {rows.map((row) => (
               <tr key={row.id}>
                 <td className="px-4 py-3">
@@ -280,7 +280,7 @@ export function ContactsTable({ rows }: { rows: DashboardRow[] }) {
                 <td className={tdClasses}>
                   <Link
                     href={`/dashboard/contacts/${row.id}`}
-                    className="font-medium text-zinc-900 underline-offset-2 hover:underline dark:text-zinc-50"
+                    className="font-medium text-foreground underline-offset-2 hover:underline "
                   >
                     {row.fullName}
                   </Link>

@@ -75,13 +75,13 @@ test("configures a faithful preview and preserves it when going back", async () 
   await expect(preview.locator("#birthday")).toHaveCount(0);
   await expect(preview.getByRole("button", { name: "Add my details" })).toBeDisabled();
 
-  await page.getByRole("checkbox", { name: "Partner name" }).check();
-  await page.getByRole("checkbox", { name: "Kids' names" }).check();
-  await page.getByRole("checkbox", { name: "Birthday" }).check();
+  await page.getByRole("switch", { name: "Partner name" }).check();
+  await page.getByRole("switch", { name: "Kids' names" }).check();
+  await page.getByRole("switch", { name: "Birthday" }).check();
   await expect(preview.locator("#partner_name")).toBeDisabled();
   await expect(preview.locator("#kids_names")).toBeDisabled();
   await expect(preview.locator("#birthday")).toBeDisabled();
-  await page.getByRole("checkbox", { name: "Birthday" }).uncheck();
+  await page.getByRole("switch", { name: "Birthday" }).uncheck();
   await expect(preview.locator("#birthday")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Back" }).click();
@@ -90,8 +90,8 @@ test("configures a faithful preview and preserves it when going back", async () 
   await expect(page.locator("#slug")).toHaveValue(slug);
 
   await page.getByRole("button", { name: "Continue to preview" }).click();
-  await expect(page.getByRole("checkbox", { name: "Partner name" })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: "Kids' names" })).toBeChecked();
+  await expect(page.getByRole("switch", { name: "Partner name" })).toBeChecked();
+  await expect(page.getByRole("switch", { name: "Kids' names" })).toBeChecked();
 });
 
 test("publishes the optional fields selected in the preview", async () => {
@@ -121,8 +121,8 @@ test("previews settings changes before publishing them", async ({ browser }) => 
   ).toBeVisible();
 
   await page.locator("#display_name").fill("Updated Owner");
-  await page.getByRole("checkbox", { name: "Kids' names" }).uncheck();
-  await page.getByRole("checkbox", { name: "Birthday" }).check();
+  await page.getByRole("switch", { name: "Kids' names" }).uncheck();
+  await page.getByRole("switch", { name: "Birthday" }).check();
   await expect(
     preview.getByRole("heading", {
       name: "Add your address to Updated Owner's address book",

@@ -52,8 +52,8 @@ function dedupeByEmail(rows: ContactInput[]): {
 }
 
 const thClasses =
-  "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400";
-const tdClasses = "px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300";
+  "px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+const tdClasses = "px-4 py-2.5 text-sm text-foreground/80";
 
 export function ImportForm() {
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -68,7 +68,9 @@ export function ImportForm() {
     setDone(null);
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) {
-      setError("That file is larger than 750 KB. Split it into smaller files and try again.");
+      setError(
+        "That file is larger than 750 KB. Split it into smaller files and try again.",
+      );
       return;
     }
     const text = await file.text();
@@ -112,7 +114,7 @@ export function ImportForm() {
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor="csv-file"
-          className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
+          className="text-sm font-medium text-foreground"
         >
           CSV file
         </label>
@@ -121,7 +123,7 @@ export function ImportForm() {
           type="file"
           accept=".csv,text/csv"
           onChange={onFileChange}
-          className="text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border file:border-zinc-300 file:bg-white file:px-4 file:py-2 file:text-sm file:font-medium file:text-zinc-900 hover:file:bg-zinc-100 dark:text-zinc-300 dark:file:border-zinc-700 dark:file:bg-zinc-900 dark:file:text-zinc-50 dark:hover:file:bg-zinc-800"
+          className="text-sm text-foreground/80 file:mr-3 file:rounded-lg file:border file:border-input file:bg-card file:px-4 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted dark:text-muted-foreground "
         />
       </div>
 
@@ -139,8 +141,9 @@ export function ImportForm() {
           role="status"
           className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-200"
         >
-          Imported {done.imported} {done.imported === 1 ? "contact" : "contacts"},
-          skipped {done.skipped}.{" "}
+          Imported {done.imported}{" "}
+          {done.imported === 1 ? "contact" : "contacts"}, skipped {done.skipped}
+          .{" "}
           <Link href="/dashboard" className="underline underline-offset-2">
             Back to contacts
           </Link>
@@ -153,12 +156,12 @@ export function ImportForm() {
       preview.ready.length === 0 &&
       preview.errors.length === 0 &&
       preview.duplicates === 0 ? (
-        <p className="rounded-lg border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
+        <p className="rounded-lg border border-dashed border-input bg-card p-4 text-sm text-muted-foreground   ">
           No data rows found in this file.
         </p>
       ) : preview ? (
         <>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="text-sm text-foreground/80">
             <span className="font-medium">
               {preview.ready.length}{" "}
               {preview.ready.length === 1 ? "contact" : "contacts"} ready
@@ -199,21 +202,36 @@ export function ImportForm() {
 
           {preview.ready.length > 0 ? (
             <>
-              <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-                <table className="w-full min-w-[36rem]" aria-label="Import preview">
-                  <thead className="border-b border-zinc-200 dark:border-zinc-800">
+              <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm ">
+                <table
+                  className="w-full min-w-[36rem]"
+                  aria-label="Import preview"
+                >
+                  <thead className="border-b border-border ">
                     <tr>
-                      <th scope="col" className={thClasses}>Name</th>
-                      <th scope="col" className={thClasses}>Partner</th>
-                      <th scope="col" className={thClasses}>Email</th>
-                      <th scope="col" className={thClasses}>City</th>
-                      <th scope="col" className={thClasses}>Country</th>
+                      <th scope="col" className={thClasses}>
+                        Name
+                      </th>
+                      <th scope="col" className={thClasses}>
+                        Partner
+                      </th>
+                      <th scope="col" className={thClasses}>
+                        Email
+                      </th>
+                      <th scope="col" className={thClasses}>
+                        City
+                      </th>
+                      <th scope="col" className={thClasses}>
+                        Country
+                      </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                  <tbody className="divide-y divide-border/60">
                     {preview.ready.slice(0, PREVIEW_ROWS).map((row, i) => (
                       <tr key={i}>
-                        <td className={`${tdClasses} font-medium text-zinc-900 dark:text-zinc-50`}>
+                        <td
+                          className={`${tdClasses} font-medium text-foreground`}
+                        >
                           {row.full_name}
                         </td>
                         <td className={tdClasses}>{row.partner_name ?? "—"}</td>
@@ -226,7 +244,7 @@ export function ImportForm() {
                 </table>
               </div>
               {preview.ready.length > PREVIEW_ROWS ? (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   Showing the first {PREVIEW_ROWS} of {preview.ready.length}{" "}
                   contacts.
                 </p>
@@ -235,7 +253,7 @@ export function ImportForm() {
                 type="button"
                 onClick={onConfirm}
                 disabled={pending}
-                className="h-10 self-start rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                className="h-10 self-start rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50 "
               >
                 {pending
                   ? "Importing…"

@@ -1,16 +1,23 @@
 "use client";
 
+import { Cake, Eye, Heart, Link2, Lock, Users } from "lucide-react";
 import { InvitePageIntroduction } from "@/components/invite-page-introduction";
 import {
   BLANK_RECIPIENT_VALUES,
   RecipientFields,
   type EnabledFields,
 } from "@/components/recipient-fields";
+import { Switch } from "@/components/ui/switch";
 
 const OPTIONAL_FIELDS = [
-  ["partner_name", "Partner name"],
-  ["kids_names", "Kids' names"],
-  ["birthday", "Birthday"],
+  [
+    "partner_name",
+    "Partner name",
+    "Ask for a spouse or partner’s name.",
+    Heart,
+  ],
+  ["kids_names", "Kids' names", "Collect the names of any children.", Users],
+  ["birthday", "Birthday", "A date to remember for cards.", Cake],
 ] as const;
 
 type InvitePageConfiguratorProps = {
@@ -30,74 +37,124 @@ export function InvitePageConfigurator({
   onFieldChange,
 }: InvitePageConfiguratorProps) {
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-      <aside className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <fieldset>
-          <legend className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] lg:gap-10">
+      <aside className="flex flex-col gap-6">
+        <div>
+          <h2 className="font-serif text-lg text-foreground">
             Optional fields
-          </legend>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          </h2>
+          <p className="mt-1.5 text-sm text-pretty text-muted-foreground">
             All optional fields start off. Add only what you want to ask for.
           </p>
-          <div className="mt-4 flex flex-col gap-3">
-            {OPTIONAL_FIELDS.map(([name, label]) => (
-              <label
-                key={name}
-                className="flex min-h-10 cursor-pointer items-center justify-between gap-4 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-800 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200"
-              >
-                {label}
-                <input
-                  id={`enable_${name}`}
-                  name={name}
-                  type="checkbox"
-                  checked={enabledFields[name]}
-                  onChange={(event) => onFieldChange(name, event.target.checked)}
-                  className="size-4 rounded border-zinc-300 accent-zinc-900 dark:border-zinc-700 dark:accent-zinc-50"
-                />
-              </label>
-            ))}
-          </div>
+        </div>
+
+        <fieldset>
+          <legend className="sr-only">Optional fields to request</legend>
+          <ul className="flex flex-col divide-y divide-border/70" role="list">
+            {OPTIONAL_FIELDS.map(([name, label, description, Icon]) => {
+              const labelId = `optional-${name}`;
+              const descriptionId = `${labelId}-description`;
+              return (
+                <li
+                  key={name}
+                  className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-muted-foreground">
+                      <Icon className="size-4" aria-hidden="true" />
+                    </span>
+                    <div className="flex flex-col">
+                      <span
+                        id={labelId}
+                        className="text-sm font-medium text-foreground"
+                      >
+                        {label}
+                      </span>
+                      <span
+                        id={descriptionId}
+                        className="text-sm text-muted-foreground"
+                      >
+                        {description}
+                      </span>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={enabledFields[name]}
+                    onCheckedChange={(checked) => onFieldChange(name, checked)}
+                    aria-labelledby={labelId}
+                    aria-describedby={descriptionId}
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </fieldset>
 
-        <dl className="mt-5 border-t border-zinc-200 pt-4 text-xs dark:border-zinc-700">
-          <dt className="font-medium text-zinc-500 dark:text-zinc-400">
-            Public link
-          </dt>
-          <dd className="mt-1 break-all font-mono text-zinc-700 dark:text-zinc-300">
-            {linkIsLive ? (
-              <a href={publicUrl} className="underline underline-offset-2">
-                {publicUrl}
-              </a>
-            ) : (
-              publicUrl
-            )}
-          </dd>
-        </dl>
+        <div className="flex flex-col gap-1.5 rounded-lg border bg-secondary/40 p-3.5">
+          <span className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <Link2 className="size-3.5" aria-hidden="true" />
+            {linkIsLive ? "Your public link" : "Your future public link"}
+          </span>
+          {linkIsLive ? (
+            <a
+              href={publicUrl}
+              className="break-all text-sm text-foreground underline-offset-2 hover:underline"
+            >
+              {publicUrl}
+            </a>
+          ) : (
+            <span className="break-all text-sm text-foreground">
+              {publicUrl}
+            </span>
+          )}
+        </div>
       </aside>
 
       <section
         aria-label="Invite page preview"
-        className="rounded-xl border-2 border-dashed border-indigo-300 bg-indigo-50/50 p-3 dark:border-indigo-800 dark:bg-indigo-950/20 sm:p-5"
+        className="flex min-w-0 flex-col gap-3"
       >
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">
-          Preview — what friends will see
-        </p>
-        <div className="mx-auto w-full max-w-lg rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <InvitePageIntroduction ownerName={ownerName} headingLevel="h3" />
-          <fieldset disabled className="mt-6 flex flex-col gap-5">
-            <RecipientFields
-              defaults={BLANK_RECIPIENT_VALUES}
-              enabled={enabledFields}
-              emailHint={`Optional — but include it so ${ownerName} can reach you.`}
-            />
-            <button
-              type="button"
-              disabled
-              className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
-            >
-              Add my details
-            </button>
-          </fieldset>
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+          <Eye className="size-4" aria-hidden="true" />
+          Preview <span aria-hidden="true">—</span>
+          <span className="font-normal">what friends will see</span>
+        </div>
+        <div className="overflow-hidden rounded-2xl border bg-muted/40 shadow-sm">
+          <div className="flex items-center gap-3 border-b border-border/70 bg-secondary/50 px-4 py-2.5">
+            <div className="flex gap-1.5" aria-hidden="true">
+              <span className="size-2.5 rounded-full bg-border" />
+              <span className="size-2.5 rounded-full bg-border" />
+              <span className="size-2.5 rounded-full bg-border" />
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md bg-background/70 px-2.5 py-1 text-xs text-muted-foreground">
+              <Lock className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{publicUrl}</span>
+            </div>
+          </div>
+          <div className="bg-card p-6 sm:p-8">
+            <div className="mx-auto max-w-md">
+              <InvitePageIntroduction
+                ownerName={ownerName || "Your friend"}
+                headingLevel="h3"
+              />
+              <fieldset disabled className="mt-6 flex flex-col gap-4">
+                <RecipientFields
+                  defaults={BLANK_RECIPIENT_VALUES}
+                  enabled={enabledFields}
+                />
+                <button
+                  type="button"
+                  disabled
+                  className="mt-2 h-11 rounded-lg bg-primary/90 text-sm font-medium text-primary-foreground opacity-90"
+                >
+                  Add my details
+                </button>
+                <p className="text-center text-xs text-muted-foreground">
+                  Protected from spam. No account needed.
+                </p>
+              </fieldset>
+            </div>
+          </div>
         </div>
       </section>
     </div>

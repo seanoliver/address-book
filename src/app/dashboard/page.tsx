@@ -35,7 +35,7 @@ export default async function DashboardPage({
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="font-serif text-2xl leading-tight text-foreground">
           Your address book
         </h1>
         <div className="flex items-center gap-2">
@@ -43,19 +43,19 @@ export default async function DashboardPage({
           <a
             href="/dashboard/export"
             download
-            className="inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            className="inline-flex h-9 items-center rounded-lg border border-input bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted  "
           >
             Export CSV
           </a>
           <Link
             href="/dashboard/import"
-            className="inline-flex h-9 items-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+            className="inline-flex h-9 items-center rounded-lg border border-input bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted  "
           >
             Import CSV
           </Link>
           <Link
             href="/dashboard/contacts/new"
-            className="inline-flex h-9 items-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+            className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 "
           >
             Add contact
           </Link>
@@ -73,11 +73,11 @@ export default async function DashboardPage({
           type="search"
           defaultValue={query}
           placeholder="Search by name or partner…"
-          className="h-9 w-full max-w-xs rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          className="h-9 w-full max-w-xs rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-3 focus:ring-ring/25 "
         />
         <button
           type="submit"
-          className="h-9 rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+          className="h-9 rounded-lg border border-input bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted  "
         >
           Search
         </button>
@@ -85,28 +85,28 @@ export default async function DashboardPage({
 
       {rows.length === 0 ? (
         query ? (
-          <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
+          <p className="mt-6 rounded-xl border border-dashed border-input bg-card p-8 text-center text-sm text-muted-foreground   ">
             No contacts match &ldquo;{query}&rdquo;.{" "}
             <Link
               href="/dashboard"
-              className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="underline underline-offset-2 hover:text-foreground/80 "
             >
               Clear search
             </Link>
           </p>
         ) : (
-          <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
+          <p className="mt-6 rounded-xl border border-dashed border-input bg-card p-8 text-center text-sm text-muted-foreground   ">
             No contacts yet —{" "}
             <Link
               href="/dashboard/import"
-              className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="underline underline-offset-2 hover:text-foreground/80 "
             >
               import a CSV
             </Link>{" "}
             or{" "}
             <Link
               href="/dashboard/contacts/new"
-              className="underline underline-offset-2 hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="underline underline-offset-2 hover:text-foreground/80 "
             >
               add your first contact
             </Link>

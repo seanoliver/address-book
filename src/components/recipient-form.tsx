@@ -79,7 +79,7 @@ export function RecipientForm({
       <button
         type="submit"
         disabled={pending}
-        className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="h-10 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50 "
       >
         {pending ? pendingLabel : submitLabel}
       </button>

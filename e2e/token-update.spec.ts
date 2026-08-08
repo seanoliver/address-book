@@ -44,7 +44,7 @@ test.beforeAll(async ({ browser }) => {
 
   // Configure the personal update form through the real Settings surface.
   await ownerPage.goto("/dashboard/settings");
-  await ownerPage.getByRole("checkbox", { name: "Kids' names" }).uncheck();
+  await ownerPage.getByRole("switch", { name: "Kids' names" }).uncheck();
   await ownerPage.getByRole("button", { name: "Save" }).click();
   await expect(ownerPage.getByRole("status")).toHaveText("Saved.");
 

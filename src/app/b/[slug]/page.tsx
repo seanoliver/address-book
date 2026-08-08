@@ -5,7 +5,11 @@ import { BLANK_RECIPIENT_VALUES } from "@/components/recipient-fields";
 import { RecipientForm } from "@/components/recipient-form";
 import { checkRateLimit } from "@/lib/db/rate-limit";
 import { logDbError } from "@/lib/log";
-import { getPublicBook, SLUG_SHAPE, type PublicBook } from "@/lib/queries/public-book";
+import {
+  getPublicBook,
+  SLUG_SHAPE,
+  type PublicBook,
+} from "@/lib/queries/public-book";
 import { hashedIpKey, requestIp } from "@/lib/request-ip";
 import { Notice } from "../../u/notice";
 import { submitToBook } from "./actions";
@@ -79,7 +83,7 @@ export default async function PublicBookPage({
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-xl border border-border bg-card p-8 shadow-sm ">
         <InvitePageIntroduction ownerName={ownerLabel} />
 
         <RecipientForm
