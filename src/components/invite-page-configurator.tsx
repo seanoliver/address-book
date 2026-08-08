@@ -16,7 +16,7 @@ const OPTIONAL_FIELDS = [
     "Ask for a spouse or partner’s name.",
     Heart,
   ],
-  ["kids_names", "Kids’ names", "Collect the names of any children.", Users],
+  ["kids_names", "Kids' names", "Collect the names of any children.", Users],
   ["birthday", "Birthday", "A date to remember for cards.", Cake],
 ] as const;
 
@@ -137,11 +137,7 @@ export function InvitePageConfigurator({
                 ownerName={ownerName || "Your friend"}
                 headingLevel="h3"
               />
-              <fieldset
-                disabled
-                aria-hidden="true"
-                className="mt-6 flex flex-col gap-4"
-              >
+              <fieldset disabled className="mt-6 flex flex-col gap-4">
                 <RecipientFields
                   defaults={BLANK_RECIPIENT_VALUES}
                   enabled={enabledFields}
