@@ -21,11 +21,11 @@ export default async function SettingsPage() {
   };
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 sm:p-8">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm  sm:p-8">
+        <h1 className="font-serif text-2xl leading-tight text-foreground">
           Address book settings
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Update your details while previewing exactly what friends will see.
         </p>
 

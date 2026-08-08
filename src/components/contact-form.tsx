@@ -7,8 +7,8 @@ import { type ContactFormValues } from "@/lib/validation/contact";
 const initialState: ContactFormState = {};
 
 const inputClasses =
-  "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
-const labelClasses = "text-sm font-medium text-zinc-900 dark:text-zinc-50";
+  "h-10 rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-3 focus:ring-ring/25 ";
+const labelClasses = "text-sm font-medium text-foreground";
 
 type ContactFormProps = {
   action: (
@@ -30,7 +30,14 @@ type FieldProps = {
   hint?: string;
 };
 
-function Field({ name, label, value, type = "text", maxLength, hint }: FieldProps) {
+function Field({
+  name,
+  label,
+  value,
+  type = "text",
+  maxLength,
+  hint,
+}: FieldProps) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={name} className={labelClasses}>
@@ -44,9 +51,7 @@ function Field({ name, label, value, type = "text", maxLength, hint }: FieldProp
         defaultValue={value}
         className={inputClasses}
       />
-      {hint ? (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</p>
-      ) : null}
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -166,14 +171,14 @@ export function ContactForm({
           rows={4}
           maxLength={2000}
           defaultValue={v.notes}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          className="rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-3 focus:ring-ring/25 "
         />
       </div>
 
       <button
         type="submit"
         disabled={pending}
-        className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className="h-10 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50 "
       >
         {pending ? "Saving…" : submitLabel}
       </button>

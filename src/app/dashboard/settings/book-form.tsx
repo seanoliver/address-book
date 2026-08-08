@@ -3,16 +3,12 @@
 import { useActionState, useState } from "react";
 import { InvitePageConfigurator } from "@/components/invite-page-configurator";
 import { type EnabledFields } from "@/components/recipient-fields";
-import {
-  saveBook,
-  type BookFormValues,
-  type SaveBookState,
-} from "./actions";
+import { saveBook, type BookFormValues, type SaveBookState } from "./actions";
 
 const initialState: SaveBookState = {};
 
 const inputClasses =
-  "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
+  "h-10 rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-3 focus:ring-ring/25 ";
 
 type BookFormProps = {
   urlPrefix: string;
@@ -57,11 +53,11 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
 
       <section
         aria-labelledby="owner-details-heading"
-        className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-900"
+        className="rounded-xl border border-border bg-secondary/50 p-5  "
       >
         <h2
           id="owner-details-heading"
-          className="text-sm font-semibold text-zinc-900 dark:text-zinc-50"
+          className="text-sm font-semibold text-foreground"
         >
           Your details
         </h2>
@@ -69,7 +65,7 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="display_name"
-              className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
+              className="text-sm font-medium text-foreground"
             >
               Your name
             </label>
@@ -90,12 +86,12 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="slug"
-              className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
+              className="text-sm font-medium text-foreground"
             >
               Link name
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <span className="shrink-0 font-mono text-sm text-zinc-500 dark:text-zinc-400">
+              <span className="shrink-0 font-mono text-sm text-muted-foreground">
                 {urlPrefix}
               </span>
               <input
@@ -150,10 +146,26 @@ export function BookForm({ urlPrefix, defaults, currentSlug }: BookFormProps) {
         }
       />
 
+      <input
+        type="hidden"
+        name="partner_name"
+        value={enabledFields.partner_name ? "on" : "off"}
+      />
+      <input
+        type="hidden"
+        name="kids_names"
+        value={enabledFields.kids_names ? "on" : "off"}
+      />
+      <input
+        type="hidden"
+        name="birthday"
+        value={enabledFields.birthday ? "on" : "off"}
+      />
+
       <button
         type="submit"
         disabled={pending || (slugChanged && !slugChangeAcked)}
-        className="h-10 rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300 sm:self-end"
+        className="h-10 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 disabled:opacity-50  sm:self-end"
       >
         {pending ? "Saving…" : "Save"}
       </button>

@@ -48,11 +48,11 @@ export default async function ContactDetailPage({
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10">
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <div className="rounded-xl border border-border bg-card p-8 shadow-sm ">
+        <h1 className="font-serif text-2xl leading-tight text-foreground">
           {contact.fullName}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           Edit this contact&apos;s details.
         </p>
 
@@ -79,13 +79,13 @@ export default async function ContactDetailPage({
 
       <section
         aria-label="History"
-        className="mt-6 rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+        className="mt-6 rounded-xl border border-border bg-card p-8 shadow-sm "
       >
-        <h2 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">
           History
         </h2>
         {events.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-3 text-sm text-muted-foreground">
             No changes recorded yet.
           </p>
         ) : (
@@ -93,15 +93,15 @@ export default async function ContactDetailPage({
             {events.map((event) => (
               <li
                 key={event.id}
-                className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+                className="rounded-lg border border-border p-4 "
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  <span className="text-sm font-medium text-foreground">
                     {sourceLabels[event.source] ?? event.source}
                   </span>
                   <time
                     dateTime={event.createdAt.toISOString()}
-                    className="text-xs text-zinc-500 dark:text-zinc-400"
+                    className="text-xs text-muted-foreground"
                   >
                     {event.createdAt.toLocaleString("en-US", {
                       month: "short",
@@ -112,7 +112,7 @@ export default async function ContactDetailPage({
                     })}
                   </time>
                 </div>
-                <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-50 p-3 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                <pre className="mt-2 overflow-x-auto rounded-lg bg-secondary/50 p-3 text-xs text-foreground/80  dark:text-muted-foreground">
                   {formatDiff(event.diff)}
                 </pre>
               </li>

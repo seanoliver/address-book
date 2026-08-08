@@ -132,9 +132,8 @@ function toCardModel(
   };
 }
 
-const cardClasses =
-  "rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950";
-const valueClasses = "break-words text-sm text-zinc-900 dark:text-zinc-50";
+const cardClasses = "rounded-xl border border-border bg-card p-6 shadow-sm ";
+const valueClasses = "break-words text-sm text-foreground";
 
 export default async function ReviewPage() {
   const claims = await requireUser();
@@ -147,16 +146,16 @@ export default async function ReviewPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
-      <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <h1 className="font-serif text-2xl leading-tight text-foreground">
         Review submissions
       </h1>
-      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-        People who added their details through your public link appear here
-        for your approval.
+      <p className="mt-1 text-sm text-muted-foreground">
+        People who added their details through your public link appear here for
+        your approval.
       </p>
 
       {cards.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
+        <p className="mt-6 rounded-xl border border-dashed border-input bg-card p-8 text-center text-sm text-muted-foreground   ">
           No pending submissions.
         </p>
       ) : (
@@ -164,32 +163,32 @@ export default async function ReviewPage() {
           {cards.map((card) => (
             <li key={card.id} className={cardClasses}>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <span className="text-sm font-medium text-foreground">
                   {card.kind === "merge"
                     ? `Possible update to existing contact: ${card.contactName}`
                     : card.kind === "new"
                       ? "New contact"
                       : "Malformed submission"}
                 </span>
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-muted-foreground">
                   Submitted {card.submittedAtLabel}
                 </span>
               </div>
 
               {card.kind === "malformed" ? (
-                <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="mt-3 text-sm text-muted-foreground">
                   This submission could not be read and can only be rejected.
                 </p>
               ) : card.kind === "new" ? (
                 card.fields.length === 0 ? (
-                  <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-3 text-sm text-muted-foreground">
                     No recognizable fields in this submission.
                   </p>
                 ) : (
                   <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                     {card.fields.map((row) => (
                       <div key={row.field}>
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           {row.label}
                         </dt>
                         <dd className={valueClasses}>{row.value}</dd>
@@ -201,34 +200,34 @@ export default async function ReviewPage() {
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[28rem]">
                     <thead>
-                      <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                        <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      <tr className="border-b border-border ">
+                        <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           Field
                         </th>
-                        <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <th className="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           Current
                         </th>
-                        <th className="py-2 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        <th className="py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                           Submitted
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                    <tbody className="divide-y divide-border/60">
                       {card.rows.map((row) => (
                         <tr key={row.field}>
-                          <td className="py-2 pr-4 text-sm text-zinc-500 dark:text-zinc-400">
+                          <td className="py-2 pr-4 text-sm text-muted-foreground">
                             {row.label}
                           </td>
                           <td className={`py-2 pr-4 ${valueClasses}`}>
                             {row.current ?? (
-                              <span className="text-zinc-400 dark:text-zinc-500">
+                              <span className="text-muted-foreground/70">
                                 —
                               </span>
                             )}
                           </td>
                           <td className={`py-2 ${valueClasses}`}>
                             {row.changed ? (
-                              <mark className="rounded bg-amber-100 px-1 py-0.5 text-zinc-900 dark:bg-amber-900/60 dark:text-zinc-50">
+                              <mark className="rounded bg-amber-100 px-1 py-0.5 text-foreground dark:bg-amber-900/60 ">
                                 {row.value}
                               </mark>
                             ) : (

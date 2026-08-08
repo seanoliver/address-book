@@ -38,12 +38,12 @@ export default async function LoginPage({
   const { sent, error } = await searchParams;
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-zinc-50 px-4 dark:bg-black">
-      <div className="w-full max-w-sm rounded-xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h1 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+    <main className="flex flex-1 items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-8 shadow-sm ">
+        <h1 className="font-serif text-2xl leading-tight text-foreground">
           Sign in
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           We&apos;ll email you a magic link — no password needed.
         </p>
 
@@ -54,7 +54,7 @@ export default async function LoginPage({
             </div>
             <a
               href="/login"
-              className="text-sm text-zinc-500 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+              className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground/80  "
             >
               Use a different email
             </a>
@@ -78,26 +78,26 @@ export default async function LoginPage({
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                className="h-10 rounded-lg border border-input bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-3 focus:ring-ring/25 "
               />
               <SubmitButton
                 pendingLabel="Sending…"
-                className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                className="h-10 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80 "
               >
                 Send magic link
               </SubmitButton>
             </form>
 
-            <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wide text-zinc-400">
-              <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+            <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground/70">
+              <div className="h-px flex-1 bg-border " />
               or
-              <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+              <div className="h-px flex-1 bg-border " />
             </div>
 
             <form action={signInWithGoogle}>
               <SubmitButton
                 pendingLabel="Redirecting…"
-                className="h-10 w-full rounded-lg border border-zinc-300 bg-white text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
+                className="h-10 w-full rounded-lg border border-input bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted  "
               >
                 Sign in with Google
               </SubmitButton>

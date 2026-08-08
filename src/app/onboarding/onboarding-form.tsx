@@ -1,8 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { AlertCircle, Mail } from "lucide-react";
 import { InvitePageConfigurator } from "@/components/invite-page-configurator";
 import { type EnabledFields } from "@/components/recipient-fields";
+import { StepProgress } from "@/components/step-progress";
+import { Button } from "@/components/ui/button";
 import {
   advanceOnboarding,
   type OnboardingState,
@@ -10,12 +13,9 @@ import {
 } from "./actions";
 
 const inputClasses =
-  "h-10 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50";
+  "h-12 w-full rounded-lg border border-input bg-card px-3.5 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/25";
 
-type OnboardingFormProps = {
-  defaults: OnboardingValues;
-  urlPrefix: string;
-};
+type OnboardingFormProps = { defaults: OnboardingValues; urlPrefix: string };
 
 export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
   const initialState: OnboardingState = { step: "details", values: defaults };
@@ -29,128 +29,159 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
     birthday: defaults.birthday,
   });
   const values = state.values;
-
-  if (state.step === "confirm") {
-    return (
-      <form action={formAction} className="mt-6 flex flex-col gap-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            Step 2 of 2
-          </p>
-          <h2 className="mt-2 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            Preview your invite page
-          </h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Choose the optional details you&apos;d like friends to add. The
-            preview updates as you make changes.
-          </p>
-        </div>
-
-        {state.error ? <ErrorMessage>{state.error}</ErrorMessage> : null}
-
-        <InvitePageConfigurator
-          ownerName={values.display_name}
-          publicUrl={`${urlPrefix}${values.slug}`}
-          enabledFields={enabledFields}
-          onFieldChange={(name, enabled) =>
-            setEnabledFields((current) => ({ ...current, [name]: enabled }))
-          }
-        />
-
-        <input type="hidden" name="display_name" value={values.display_name} />
-        <input type="hidden" name="slug" value={values.slug} />
-
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <button
-            type="submit"
-            name="intent"
-            value="back"
-            formNoValidate
-            disabled={pending}
-            className="h-10 rounded-lg border border-zinc-300 bg-white px-5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:hover:bg-zinc-800"
-          >
-            Back
-          </button>
-          <button
-            type="submit"
-            name="intent"
-            value="create"
-            disabled={pending}
-            className="h-10 rounded-lg bg-zinc-900 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
-          >
-            {pending ? "Creating…" : "Create my address book"}
-          </button>
-        </div>
-      </form>
-    );
-  }
+  const currentStep = state.step === "confirm" ? 2 : 1;
 
   return (
-    <form action={formAction} className="mx-auto mt-6 flex max-w-lg flex-col gap-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        Step 1 of 2
-      </p>
-      <div>
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          Choose your details
-        </h2>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Your name tells friends whose address book they&apos;re adding to.
-        </p>
-      </div>
-
-      {state.error ? <ErrorMessage>{state.error}</ErrorMessage> : null}
-
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="display_name"
-          className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
-        >
-          Your name
-        </label>
-        <input
-          id="display_name"
-          name="display_name"
-          type="text"
-          required
-          maxLength={200}
-          autoComplete="name"
-          defaultValue={values.display_name}
-          placeholder="Sean"
-          className={inputClasses}
-        />
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          A first name is fine. This will be visible to friends.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor="slug"
-          className="text-sm font-medium text-zinc-900 dark:text-zinc-50"
-        >
-          Link name
-        </label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span className="shrink-0 font-mono text-sm text-zinc-500 dark:text-zinc-400">
-            {urlPrefix}
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-5 py-10 sm:px-8 sm:py-16">
+      <header className="flex flex-col gap-6">
+        <div className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-2 font-serif text-base text-foreground">
+            <Mail className="size-4 text-primary" aria-hidden="true" />
+            Address Book
           </span>
-          <input
-            id="slug"
-            name="slug"
-            type="text"
-            required
-            pattern="[a-z0-9][a-z0-9\-]{2,62}"
-            title="3-63 chars; lowercase letters, numbers, hyphens; must start alphanumeric"
-            defaultValue={values.slug}
-            className={`${inputClasses} w-full`}
-          />
+          <StepProgress current={currentStep} />
         </div>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          Lowercase letters, numbers, and hyphens. You can edit the suggestion.
-        </p>
-      </div>
+        <div className="flex flex-col gap-2">
+          <h1 className="font-serif text-3xl leading-tight text-balance text-foreground sm:text-4xl">
+            {currentStep === 1
+              ? "Create your address book"
+              : "Preview your invite page"}
+          </h1>
+          <p className="max-w-xl text-pretty text-muted-foreground">
+            {currentStep === 1
+              ? "Start with your name and the link you’ll share with friends."
+              : "Choose the optional details you’d like friends to add. The preview updates as you make changes."}
+          </p>
+        </div>
+      </header>
 
+      {state.step === "confirm" ? (
+        <form action={formAction} className="flex flex-col gap-8">
+          {state.error ? <ErrorMessage>{state.error}</ErrorMessage> : null}
+          <InvitePageConfigurator
+            ownerName={values.display_name}
+            publicUrl={`${urlPrefix}${values.slug}`}
+            enabledFields={enabledFields}
+            onFieldChange={(name, enabled) =>
+              setEnabledFields((current) => ({ ...current, [name]: enabled }))
+            }
+          />
+          <input
+            type="hidden"
+            name="display_name"
+            value={values.display_name}
+          />
+          <input type="hidden" name="slug" value={values.slug} />
+          <OptionalFieldInputs enabledFields={enabledFields} />
+          <div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              type="submit"
+              name="intent"
+              value="back"
+              variant="ghost"
+              size="lg"
+              formNoValidate
+              disabled={pending}
+              className="h-11 sm:px-5"
+            >
+              Back
+            </Button>
+            <Button
+              type="submit"
+              name="intent"
+              value="create"
+              size="lg"
+              disabled={pending}
+              className="h-11 w-full text-base sm:w-auto sm:px-6"
+            >
+              {pending ? "Creating…" : "Create my address book"}
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <form action={formAction} className="flex max-w-lg flex-col gap-7">
+          {state.error ? <ErrorMessage>{state.error}</ErrorMessage> : null}
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="display_name"
+              className="text-sm font-medium text-foreground"
+            >
+              Your name
+            </label>
+            <input
+              id="display_name"
+              name="display_name"
+              type="text"
+              required
+              maxLength={200}
+              autoComplete="name"
+              defaultValue={values.display_name}
+              placeholder="Sean"
+              className={inputClasses}
+            />
+            <p className="text-sm text-muted-foreground">
+              A first name is fine. This will be visible to friends.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label
+              htmlFor="slug"
+              className="text-sm font-medium text-foreground"
+            >
+              Link name
+            </label>
+            <div className="flex h-12 w-full items-center overflow-hidden rounded-lg border border-input bg-card shadow-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/25">
+              <span className="flex h-full max-w-[55%] items-center truncate border-r border-border/70 bg-secondary/60 px-3.5 text-sm text-muted-foreground select-none">
+                {urlPrefix}
+              </span>
+              <input
+                id="slug"
+                name="slug"
+                type="text"
+                required
+                pattern="[a-z0-9][a-z0-9\-]{2,62}"
+                title="3-63 chars; lowercase letters, numbers, hyphens; must start alphanumeric"
+                defaultValue={values.slug}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                className="h-full min-w-0 flex-1 bg-transparent px-3 text-base text-foreground outline-none"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Lowercase letters, numbers, and hyphens. You can edit the
+              suggestion.
+            </p>
+          </div>
+          <OptionalFieldInputs enabledFields={enabledFields} />
+          <Button
+            type="submit"
+            name="intent"
+            value="continue"
+            size="lg"
+            disabled={pending}
+            className="h-12 w-full text-base sm:w-auto sm:self-start sm:px-6"
+          >
+            {pending ? "Checking…" : "Continue to preview"}
+          </Button>
+        </form>
+      )}
+
+      <footer className="text-sm text-muted-foreground">
+        Private by design. Friends can only add their own details — they never
+        see anyone else’s.
+      </footer>
+    </div>
+  );
+}
+
+function OptionalFieldInputs({
+  enabledFields,
+}: {
+  enabledFields: EnabledFields;
+}) {
+  return (
+    <>
       <input
         type="hidden"
         name="partner_name"
@@ -166,17 +197,7 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
         name="birthday"
         value={enabledFields.birthday ? "on" : "off"}
       />
-
-      <button
-        type="submit"
-        name="intent"
-        value="continue"
-        disabled={pending}
-        className="h-10 rounded-lg bg-zinc-900 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-300"
-      >
-        {pending ? "Checking…" : "Continue to preview"}
-      </button>
-    </form>
+    </>
   );
 }
 
@@ -184,8 +205,9 @@ function ErrorMessage({ children }: { children: React.ReactNode }) {
   return (
     <div
       role="alert"
-      className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+      className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
     >
+      <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
       {children}
     </div>
   );
