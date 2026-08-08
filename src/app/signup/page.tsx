@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { AuthPage } from "@/components/auth-page";
 
-export const metadata: Metadata = { title: "Log in" };
+export const metadata: Metadata = { title: "Create your address book" };
 
-export default async function LoginPage({
+export default async function SignupPage({
   searchParams,
 }: {
   searchParams: Promise<{ sent?: string; error?: string }>;
 }) {
   const { sent, error } = await searchParams;
-  return <AuthPage flow="login" sent={sent} error={error} />;
+  return <AuthPage flow="signup" sent={sent} error={error} />;
 }
