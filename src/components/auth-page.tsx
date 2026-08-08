@@ -12,7 +12,7 @@ type AuthPageProps = {
   error?: string;
 };
 
-const copy = {
+const COPY = {
   login: {
     headline: "Welcome back.",
     message:
@@ -39,7 +39,7 @@ const copy = {
 
 /** Shared editorial auth surface with flow-specific correspondence and copy. */
 export function AuthPage({ flow, sent, error }: AuthPageProps) {
-  const text = copy[flow];
+  const text = COPY[flow];
 
   return (
     <main className="flex flex-1 items-center px-5 py-12 sm:px-8">
