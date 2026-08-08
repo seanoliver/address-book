@@ -110,12 +110,15 @@ export function InvitePageConfigurator({
         </div>
       </aside>
 
-      <figure className="flex min-w-0 flex-col gap-3">
-        <figcaption className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+      <section
+        aria-label="Invite page preview"
+        className="flex min-w-0 flex-col gap-3"
+      >
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <Eye className="size-4" aria-hidden="true" />
           Preview <span aria-hidden="true">—</span>
           <span className="font-normal">what friends will see</span>
-        </figcaption>
+        </div>
         <div className="overflow-hidden rounded-2xl border bg-muted/40 shadow-sm">
           <div className="flex items-center gap-3 border-b border-border/70 bg-secondary/50 px-4 py-2.5">
             <div className="flex gap-1.5" aria-hidden="true">
@@ -157,7 +160,7 @@ export function InvitePageConfigurator({
             </div>
           </div>
         </div>
-      </figure>
+      </section>
     </div>
   );
 }
