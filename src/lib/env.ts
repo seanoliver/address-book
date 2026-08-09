@@ -1,4 +1,5 @@
 import "server-only";
+import { appEnvironment } from "@/lib/app-env";
 
 /**
  * Startup assertion for required server env vars. Deliberately dumb — no
@@ -12,6 +13,7 @@ import "server-only";
  */
 
 const ALWAYS_REQUIRED = [
+  "APP_ENV",
   "APP_URL",
   "DATABASE_URL",
   "NEXT_PUBLIC_SUPABASE_URL",
@@ -34,10 +36,14 @@ const EMAIL_REQUIRED = [
 export function assertServerEnv(): void {
   const missing: string[] = ALWAYS_REQUIRED.filter((k) => !process.env[k]);
 
-  // Mirror of isEmailDryRun() in @/lib/email/resend.ts — duplicated (two
-  // lines) so this module stays dependency-free and import-cycle-proof.
+  // Validate APP_ENV even when every required key is present.
+  appEnvironment();
+
+  // Mirror of isEmailDryRun() in @/lib/email/resend.ts. Keep this local so
+  // startup validation does not initialize the Resend module.
   const emailDryRun =
-    process.env.EMAIL_DRY_RUN === "1" && process.env.NODE_ENV !== "production";
+    process.env.EMAIL_DRY_RUN === "1" &&
+    process.env.APP_ENV !== "production";
   if (!emailDryRun) {
     missing.push(...EMAIL_REQUIRED.filter((k) => !process.env[k]));
   }
