@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Mail } from "lucide-react";
+import { SealedWordmark } from "@/components/sealed-mark";
 import { requireUser } from "@/lib/auth";
 import { getOwnBook } from "@/lib/queries/books";
 
@@ -15,9 +15,8 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
     <div className="flex min-h-full flex-1 flex-col bg-background">
       <header className="border-b border-border/80 bg-card/80 backdrop-blur">
         <nav className="mx-auto flex min-h-16 w-full max-w-4xl flex-wrap items-center gap-1 px-4 py-2">
-          <Link href="/dashboard" className="mr-4 flex items-center gap-2 font-serif text-base text-foreground">
-            <Mail className="size-4 text-primary" aria-hidden="true" />
-            Address Book
+          <Link href="/dashboard" className="mr-4 flex">
+            <SealedWordmark />
           </Link>
           <Link href="/dashboard" className={navLinkClasses}>Contacts</Link>
           <Link href="/dashboard/review" className={navLinkClasses}>Review</Link>

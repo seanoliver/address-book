@@ -13,13 +13,18 @@ export function uniqueSlug(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
 }
 
-/**
- * Poll Mailpit's REST API for the newest message to `email` and pull the
- * /auth/confirm magic link out of its text body.
- */
-export async function fetchMagicLink(email: string): Promise<string> {
+export type DeliveredMessage = {
+  Subject: string;
+  HTML: string;
+  Text: string;
+};
+
+/** Poll Mailpit for the newest fully rendered message delivered to `email`. */
+export async function fetchDeliveredMessage(
+  email: string,
+): Promise<DeliveredMessage> {
   const query = encodeURIComponent(`to:${email}`);
-  let link: string | null = null;
+  let message: DeliveredMessage | null = null;
   await expect
     .poll(
       async () => {
@@ -28,19 +33,26 @@ export async function fetchMagicLink(email: string): Promise<string> {
         const { messages } = (await search.json()) as {
           messages: { ID: string }[];
         };
-        if (messages.length === 0) return null; // not delivered yet
-        // messages[] is newest-first — take the latest link for this address.
-        const res = await fetch(`${MAILPIT_URL}/api/v1/message/${messages[0].ID}`);
-        if (!res.ok) return null;
-        const { Text } = (await res.json()) as { Text: string };
-        link = Text.match(/https?:\/\/[^\s)]+\/auth\/confirm[^\s)]*/)?.[0] ?? null;
-        return link;
+        if (messages.length === 0) return null;
+        const response = await fetch(
+          `${MAILPIT_URL}/api/v1/message/${messages[0].ID}`,
+        );
+        if (!response.ok) return null;
+        message = (await response.json()) as DeliveredMessage;
+        return message;
       },
-      { message: `magic link email for ${email} in Mailpit`, timeout: 15_000 },
+      { message: `email for ${email} in Mailpit`, timeout: 15_000 },
     )
     .not.toBeNull();
-  // TS can't see the closure assignment above; the poll guarantees non-null.
-  if (link === null) throw new Error(`no magic link found for ${email}`);
+  if (message === null) throw new Error(`no email found for ${email}`);
+  return message;
+}
+
+/** Pull the real /auth/confirm magic link out of the rendered email body. */
+export async function fetchMagicLink(email: string): Promise<string> {
+  const { Text } = await fetchDeliveredMessage(email);
+  const link = Text.match(/https?:\/\/[^\s)]+\/auth\/confirm[^\s)]*/)?.[0];
+  if (!link) throw new Error(`no magic link found for ${email}`);
   return link;
 }
 
@@ -56,8 +68,12 @@ export async function signupAndLogin(page: Page, email: string): Promise<void> {
   await expect(
     page.getByText("Check your email for a sign-in link."),
   ).toBeVisible();
-  const link = await fetchMagicLink(email);
-  await page.goto(link);
+  const link = new URL(await fetchMagicLink(email));
+  expect(link.origin).toBe(new URL(process.env.APP_URL!).origin);
+  // Keep worktree/custom-port runs on the origin where this browser began.
+  // The auth callback path and token parameters still come from the real email.
+  const pageOrigin = new URL(page.url()).origin;
+  await page.goto(`${pageOrigin}${link.pathname}${link.search}`);
   await expect(page).toHaveURL(/\/(dashboard|onboarding)$/);
 }
 

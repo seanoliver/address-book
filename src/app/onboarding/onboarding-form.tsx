@@ -1,8 +1,9 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { AlertCircle, Mail } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { InvitePageConfigurator } from "@/components/invite-page-configurator";
+import { SealedWordmark } from "@/components/sealed-mark";
 import { type EnabledFields } from "@/components/recipient-fields";
 import { StepProgress } from "@/components/step-progress";
 import { Button } from "@/components/ui/button";
@@ -35,10 +36,7 @@ export function OnboardingForm({ defaults, urlPrefix }: OnboardingFormProps) {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-5 py-10 sm:px-8 sm:py-16">
       <header className="flex flex-col gap-6">
         <div className="flex items-center justify-between gap-4">
-          <span className="flex items-center gap-2 font-serif text-base text-foreground">
-            <Mail className="size-4 text-primary" aria-hidden="true" />
-            Address Book
-          </span>
+          <SealedWordmark />
           <StepProgress current={currentStep} />
         </div>
         <div className="flex flex-col gap-2">

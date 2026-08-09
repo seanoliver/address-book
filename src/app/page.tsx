@@ -1,16 +1,48 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { Lock, Mail } from "lucide-react";
+import { Lock } from "lucide-react";
+import { SealedWordmark } from "@/components/sealed-mark";
 import { buttonVariants } from "@/components/ui/button";
+import { SITE_DESCRIPTION } from "@/lib/branding";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: { absolute: "Sealed" },
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "Sealed",
+    description: SITE_DESCRIPTION,
+    url: "/",
+    siteName: "Sealed",
+    locale: "en_US",
+    type: "website",
+    images: [
+      {
+        url: "/social-card",
+        width: 1200,
+        height: 630,
+        alt: "Sealed — a private address book",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Sealed",
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: "/social-card",
+        alt: "Sealed — a private address book",
+      },
+    ],
+  },
+};
 
 export default function Home() {
   return (
     <main className="flex flex-1 items-center px-5 py-16 sm:px-8">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-12">
-        <span className="flex items-center gap-2 font-serif text-base text-foreground">
-          <Mail className="size-4 text-primary" aria-hidden="true" />
-          Address Book
-        </span>
+        <SealedWordmark />
         <div className="max-w-2xl">
           <p className="mb-4 text-sm font-medium tracking-wide text-primary uppercase">
             A simpler way to stay in touch

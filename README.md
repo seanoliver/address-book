@@ -1,6 +1,6 @@
-# Address Book
+# Sealed
 
-An open-source, self-hostable address book for people who mail things to people — holiday cards being the canonical use case.
+Sealed is an open-source, self-hostable address book for people who mail things to people — holiday cards being the canonical use case.
 
 Each owner has one personal address book, identified by their display name rather than a separate book title. Each year (or whenever), you email contacts a unique, expiring link where they confirm or update **their own** address — no account needed on their end. You also get a shareable permalink where people can add themselves to your book, write-only: visitors can never see what's in it. When it's time to print labels, export everything as CSV.
 
@@ -61,7 +61,7 @@ All of these live in `.env.local` (gitignored). See [.env.local.example](.env.lo
 | `DATABASE_URL` | Direct Postgres connection for Drizzle (server only, never exposed to the client). In production: the transaction pooler on port 6543 with `sslmode=require`. |
 | `RESEND_API_KEY` | [Resend](https://resend.com) API key for sending address-request emails. |
 | `RESEND_WEBHOOK_SECRET` | Signing secret (svix, `whsec_…`) for verifying `/api/webhooks/resend` events. |
-| `EMAIL_FROM` | From header for outgoing email, e.g. `"Address Book <addresses@example.com>"`. Must be a domain verified in Resend. |
+| `EMAIL_FROM` | From header for outgoing email, e.g. `"Sealed <addresses@example.com>"`. Must be a domain verified in Resend. |
 | `EMAIL_DRY_RUN` | Set to `1` to log tokenized links instead of sending email. Allowed only when `APP_ENV` is `local` or `staging`; always ignored in production. |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key. The example value is Cloudflare's public always-pass test key. |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key. The example value is Cloudflare's public always-pass test key. |

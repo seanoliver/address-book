@@ -7,6 +7,14 @@ import { defineConfig, devices } from "@playwright/test";
 // already present in the environment.
 process.loadEnvFile(path.resolve(__dirname, ".env.local"));
 
+// Override the browser/server port when another worktree already owns :3000.
+// APP_URL remains the configured canonical origin and is asserted separately.
+const port = Number(process.env.E2E_PORT ?? "3000");
+if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+  throw new Error(`Invalid E2E_PORT: ${process.env.E2E_PORT}`);
+}
+const appUrl = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: "e2e",
   // Specs are self-contained (own users, own books) and may run in parallel
@@ -19,13 +27,15 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   reporter: "list",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: appUrl,
     trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
+    command: process.env.E2E_PORT
+      ? `pnpm exec next dev --webpack -p ${port}`
+      : "pnpm dev",
+    url: appUrl,
     // Local: attach to an already-running dev server. CI: always boot fresh.
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

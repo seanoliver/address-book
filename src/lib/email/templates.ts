@@ -35,13 +35,14 @@ export function addressRequestEmail({
   // it enters the subject line. Resend's JSON API can't be header-injected,
   // but that guarantee shouldn't be outsourced to the transport.
   const safeOwnerName = ownerName.replace(/\p{Cc}+/gu, " ").trim();
-  const subject = `${safeOwnerName} would like your current mailing address`;
+  const subject = `${safeOwnerName} would like your current mailing address · Sealed`;
 
   const owner = escapeHtml(safeOwnerName);
   const url = escapeHtml(updateUrl);
 
   // Minimal single-column HTML: inline styles only, no images, no tracking.
   const html = `<div style="margin:0 auto;max-width:520px;padding:24px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:15px;line-height:1.6">
+  <p style="margin:0 0 24px;font-size:17px;font-weight:700">Sealed</p>
   <p style="margin:0 0 16px">Hi,</p>
   <p style="margin:0 0 16px">${owner} is updating their address book and would like to make sure your mailing address is current.</p>
   <p style="margin:0 0 24px">It takes less than a minute — confirm or update your details here:</p>
@@ -50,7 +51,9 @@ export function addressRequestEmail({
   <p style="margin:0;color:#6b7280;font-size:13px">If the button doesn&#39;t work, copy and paste this address into your browser:<br>${url}</p>
 </div>`;
 
-  const text = `Hi,
+  const text = `Sealed
+
+Hi,
 
 ${safeOwnerName} is updating their address book and would like to make sure your mailing address is current.
 
@@ -76,17 +79,20 @@ export interface SubmissionNotificationEmailInput {
 export function submissionNotificationEmail({
   reviewUrl,
 }: SubmissionNotificationEmailInput): EmailContent {
-  const subject = "New address submission";
+  const subject = "New address submission · Sealed";
   const url = escapeHtml(reviewUrl);
 
   const html = `<div style="margin:0 auto;max-width:520px;padding:24px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;font-size:15px;line-height:1.6">
+  <p style="margin:0 0 24px;font-size:17px;font-weight:700">Sealed</p>
   <p style="margin:0 0 16px">Hi,</p>
   <p style="margin:0 0 16px">Someone added their info through your public link. It&#39;s waiting in your review queue.</p>
   <p style="margin:0 0 24px"><a href="${url}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Review it</a></p>
   <p style="margin:0;color:#6b7280;font-size:13px">If the button doesn&#39;t work, copy and paste this address into your browser:<br>${url}</p>
 </div>`;
 
-  const text = `Hi,
+  const text = `Sealed
+
+Hi,
 
 Someone added their info through your public link. It's waiting in your review queue.
 

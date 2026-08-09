@@ -1,6 +1,6 @@
 # Environments and promotion
 
-Address Book runs in three isolated environments. `APP_ENV` is the application-level environment selector; do not use `NODE_ENV` for this distinction because Vercel Preview deployments also run with `NODE_ENV=production`.
+Sealed runs in three isolated environments. `APP_ENV` is the application-level environment selector; do not use `NODE_ENV` for this distinction because Vercel Preview deployments also run with `NODE_ENV=production`.
 
 ## Environment matrix
 

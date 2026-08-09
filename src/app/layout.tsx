@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Inter } from "next/font/google";
+import { SITE_DESCRIPTION } from "@/lib/branding";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -16,9 +17,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Address Book", template: "%s · Address Book" },
-  description:
-    "Keep your friends' mailing addresses current through a private link.",
+  metadataBase: new URL(process.env.APP_URL!),
+  title: { default: "Sealed", template: "%s · Sealed" },
+  description: SITE_DESCRIPTION,
+  applicationName: "Sealed",
 };
 
 export const viewport: Viewport = {
