@@ -165,7 +165,7 @@ Work through this before pointing real traffic at a deployment:
 
 ## Reporting a vulnerability
 
-Please **do not open a public GitHub issue** for security problems. Email **helloseanoliver@gmail.com** with a description and reproduction steps; you'll get an acknowledgment within a few days. Coordinated disclosure is appreciated — this app holds other people's home addresses, so please allow a fix to ship before publishing details.
+Please **do not open a public GitHub issue** for security problems. Email **hello@sealed.page** with a description and reproduction steps; you'll get an acknowledgment within a few days. Coordinated disclosure is appreciated — this app holds other people's home addresses, so please allow a fix to ship before publishing details.
 
 ## Design-decision records
 
