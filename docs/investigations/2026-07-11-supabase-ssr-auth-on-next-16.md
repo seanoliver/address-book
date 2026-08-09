@@ -1,7 +1,10 @@
 # Supabase SSR auth (@supabase/ssr 0.12) on Next.js 16
 
 **Date:** 2026-07-11
+**Status:** Current
 **Prompted by:** Feature build (Task 6: auth + login page)
+**Last verified:** `156da36` on 2026-08-09
+**Related:** [OAuth preview-origin bug](../bugs/2026-08-09-oauth-pkce-callback-crosses-preview-origin.md)
 
 ## Context
 

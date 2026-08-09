@@ -1,7 +1,7 @@
 # Promote local changes through staging and production
 
-**Status:** Current
-**Last verified:** `156da36` on 2026-08-09 in staging; production workflow configured but not yet exercised end to end
+**Status:** Stale — staging is verified; production remains unverified until its first end-to-end workflow release
+**Last verified:** `156da36` on 2026-08-09 in staging
 **Owner:** Maintainers
 **Related:** [Environment topology](../ENVIRONMENTS.md), [PR #9](https://github.com/seanoliver/address-book/pull/9), [Vercel environment deletion incident](../bugs/2026-08-09-vercel-env-target-removal-deletes-shared-record.md)
 
@@ -30,24 +30,27 @@ Promote one verified commit from local/PR testing to shared staging and then to 
    gh run watch <run-id> --exit-status
    ```
 
-4. Main CI success triggers `.github/workflows/deploy-staging.yml`. Watch it and require a successful `supabase db push`:
+4. Main CI success triggers `.github/workflows/deploy-staging.yml`. Record that staging workflow's run ID, watch it, and require a successful `supabase db push`:
 
    ```bash
    gh run list --workflow deploy-staging.yml --limit 5
-   gh run watch <run-id> --exit-status
+   gh run watch <staging-run-id> --exit-status
    ```
 
-5. Smoke-test stable staging at `https://address-book-staging.vercel.app`: login, callback, onboarding, an authenticated owner action, and any changed recipient flow. Application-generated address-request email remains dry-run in staging.
-6. Record the exact commit SHA that passed staging:
+5. Read the tested SHA from the successful staging workflow itself; do not infer it from a local `origin/main`, which may be stale or may already have advanced:
 
    ```bash
-   git rev-parse origin/main
+   STAGING_SHA=$(gh run view <staging-run-id> \
+     --json headSha,conclusion \
+     --jq 'select(.conclusion == "success") | .headSha')
+   test -n "$STAGING_SHA"
    ```
 
-7. Dispatch the protected production workflow with that exact SHA or a release tag:
+6. Confirm the stable staging Vercel deployment reports the same commit SHA, then smoke-test `https://address-book-staging.vercel.app`: login, callback, onboarding, an authenticated owner action, and any changed recipient flow. Application-generated address-request email remains dry-run in staging.
+7. Dispatch the protected production workflow with `STAGING_SHA` or a release tag resolving to that exact commit:
 
    ```bash
-   gh workflow run deploy-production.yml -f ref=<sha-or-tag>
+   gh workflow run deploy-production.yml -f ref="$STAGING_SHA"
    ```
 
 8. Approve the GitHub Production environment deployment after checking the ref and staging evidence. The workflow applies migrations first and then asks Vercel to build and deploy the same checkout.
