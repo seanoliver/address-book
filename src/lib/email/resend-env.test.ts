@@ -1,0 +1,21 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { isEmailDryRun } from "./resend";
+
+describe("isEmailDryRun", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(["local", "staging"] as const)(
+    "allows dry-run email in %s",
+    (environment) => {
+      vi.stubEnv("APP_ENV", environment);
+      vi.stubEnv("EMAIL_DRY_RUN", "1");
+      expect(isEmailDryRun()).toBe(true);
+    },
+  );
+
+  it("never allows dry-run email in production", () => {
+    vi.stubEnv("APP_ENV", "production");
+    vi.stubEnv("EMAIL_DRY_RUN", "1");
+    expect(isEmailDryRun()).toBe(false);
+  });
+});

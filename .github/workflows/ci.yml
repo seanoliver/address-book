@@ -9,6 +9,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Local Auth enables Google through environment-substituted credentials. CI
+# only exercises email/test auth, so non-secret placeholders are sufficient.
+env:
+  SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID: ci-google-client-id.apps.googleusercontent.com
+  SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET: ci-google-client-secret
+
 jobs:
   lint:
     name: Lint & typecheck

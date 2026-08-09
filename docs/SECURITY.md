@@ -76,7 +76,7 @@ Update links (`/u/<token>`) are bearer credentials, treated accordingly (`src/li
 - **Single-use** — consumed (`used_at`) on successful update, inside a `SELECT … FOR UPDATE` so concurrent submits can't double-spend
 - **Single-active-per-contact** — re-running "Request addresses" deletes the contact's previous unused tokens before minting, so old links die immediately instead of living out their expiry
 - **Shape gate before DB** — both the page and the action test the token against `TOKEN_SHAPE` (`^[A-Za-z0-9_-]{43}$`) before any query; malformed tokens cost zero DB work
-- **Never logged** — the raw token exists only in the emailed URL; `logDbError` strips query params, and the sole exception is the `EMAIL_DRY_RUN=1` dev log, which is hard-disabled when `NODE_ENV=production`
+- **Never logged** — the raw token exists only in the emailed URL; `logDbError` strips query params, and the sole exception is the `EMAIL_DRY_RUN=1` non-production log, which is hard-disabled when `APP_ENV=production`
 - `/u/*` responses carry `X-Robots-Tag: noindex, nofollow` (`next.config.ts`) so a leaked link can't end up in a search index
 - Emails contain no address data — only the link, which identifies nothing by itself
 
@@ -153,7 +153,7 @@ Work through this before pointing real traffic at a deployment:
 - [ ] **Real Turnstile keys** — the keys in `.env.local.example` are Cloudflare's public always-pass test keys; with them, the bot wall is decorative.
 - [ ] **Resend**: verify the sending domain (SPF/DKIM) and set the webhook endpoint + `RESEND_WEBHOOK_SECRET` — without the secret the webhook route refuses all events (fail closed).
 - [ ] **Vercel env vars marked Sensitive** so they're write-only in the dashboard.
-- [ ] **`EMAIL_DRY_RUN` must be unset.** The code also gates it on `NODE_ENV !== "production"` (a stray flag can't divert real sends into console logs of token links), but don't rely on the belt when you can remove the braces.
+- [ ] **`EMAIL_DRY_RUN` must be unset.** The code also gates it on `APP_ENV !== "production"` (a stray flag can't divert real sends into console logs of token links), but don't rely on the belt when you can remove the braces.
 - [ ] **Schedule a `private.rate_limits` sweep** — the table grows with distinct key×window entries and has no in-band cleanup. Enable the `pg_cron` extension first (Dashboard → Database → Extensions), then:
 
   ```sql

@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { Resend } from "resend";
+import { isProductionEnvironment } from "@/lib/app-env";
 
 export interface EmailItem {
   to: string;
@@ -25,13 +26,12 @@ let dryRunCounter = 0;
 
 /**
  * Dry-run predicate, shared with requestAddresses' up-front env validation.
- * NODE_ENV-gated so a stray EMAIL_DRY_RUN=1 in production can never divert
- * real sends into console logs of raw token links.
+ * APP_ENV-gated because Vercel staging and preview deployments also run with
+ * NODE_ENV=production. A stray EMAIL_DRY_RUN=1 can never suppress real
+ * production sends.
  */
 export function isEmailDryRun(): boolean {
-  return (
-    process.env.EMAIL_DRY_RUN === "1" && process.env.NODE_ENV !== "production"
-  );
+  return process.env.EMAIL_DRY_RUN === "1" && !isProductionEnvironment();
 }
 
 let client: Resend | undefined;
@@ -51,8 +51,8 @@ function getClient(): Resend {
  * the caller decides what to do with the unsent tokens).
  *
  * Logging safety: the html/text bodies contain personal token URLs and are
- * NEVER logged in real mode. The dev-only EMAIL_DRY_RUN=1 path logs the
- * bare link (devs need it to exercise /u/[token]) and sends nothing.
+ * NEVER logged in real mode. The non-production EMAIL_DRY_RUN=1 path logs
+ * the bare link (developers need it to exercise /u/[token]) and sends nothing.
  */
 export async function sendAddressRequests(
   items: EmailItem[],

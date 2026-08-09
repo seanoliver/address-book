@@ -1,24 +1,31 @@
 # <Short investigation title>
 
 **Date:** YYYY-MM-DD
-**Prompted by:** Bug fix / Feature build / Curiosity
+**Status:** Current / Stale / Superseded by `<path>`
+**Prompted by:** Bug fix / Feature build / Curiosity / Onboarding
+**Last verified:** `<commit>` on YYYY-MM-DD
+**Related:** Issue / PR / bug / ADR / runbook links, or None
 
-## Context
+## Question
 
-Why this was investigated and what question it answers.
+The specific question this investigation answers and why it mattered.
 
 ## Key findings
 
-The headline conclusions, most important first.
+The headline conclusions, most important first. Distinguish observed facts from inference.
 
 ## How it works
 
-The mechanism, with file/API references.
+The mechanism, with concrete file paths, symbols, APIs, and evidence.
 
 ## Gotchas
 
-Traps, surprising defaults, and things that look right but aren't.
+Traps, surprising defaults, edge cases, and plausible approaches that do not work.
+
+## Open questions
+
+Anything still unknown. Remove resolved questions when updating the same investigation.
 
 ## References
 
-Docs, source files, and commits consulted.
+Source files, tests, commits, PRs, issues, and primary external documentation consulted.

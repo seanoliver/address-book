@@ -1,0 +1,59 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tested commit SHA or tag to deploy
+        required: true
+        default: main
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and deploy production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: Production
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - run: pnpm install --frozen-lockfile
+      - name: Apply committed migrations to production
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          test -n "$DATABASE_URL" || { echo "PRODUCTION_DATABASE_URL is not configured"; exit 1; }
+          supabase db push --db-url "$DATABASE_URL" --include-all --yes
+      - name: Pull production Vercel settings
+        run: pnpm exec vercel pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      - name: Build production artifact
+        run: pnpm exec vercel build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      - name: Deploy tested artifact
+        id: deploy
+        run: |
+          url=$(pnpm exec vercel deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+        env:
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
