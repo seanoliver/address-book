@@ -102,7 +102,7 @@ Staging currently uses email dry-run and Turnstile test keys. This is deliberate
 
 ### Staging deployment
 
-Git-connected Vercel deployments handle `main` and pull requests. After CI succeeds on `main`, `.github/workflows/deploy-staging.yml` applies committed migrations to staging. Database-changing PR previews therefore run against the last merged staging schema; keep migrations backward-compatible.
+Git-connected Vercel deployments handle `main` and pull requests. After CI succeeds on `main`, `.github/workflows/deploy-staging.yml` applies committed migrations to staging. `STAGING_DATABASE_URL` must be an owner-role Supabase **transaction-pooler** URL on port 6543; GitHub-hosted runners cannot reach the project's IPv6-only direct database endpoint. Database-changing PR previews therefore run against the last merged staging schema; keep migrations backward-compatible.
 
 ## Production
 
@@ -122,7 +122,7 @@ Required GitHub Production secret:
 PRODUCTION_DATABASE_URL
 ```
 
-This migration URL connects as the Supabase database owner and is available only to the protected deployment job. It is distinct from Vercel's runtime `DATABASE_URL`, which must connect as the restricted `app_server` role.
+This migration URL connects as the Supabase database owner and is available only to the protected deployment job. It must use the IPv4 transaction pooler on port 6543 for GitHub-hosted runners. It is distinct from Vercel's runtime `DATABASE_URL`, which must connect as the restricted `app_server` role.
 
 Required production Vercel variables:
 
@@ -172,6 +172,8 @@ Before considering an environment ready:
 - Recipient links are write-only and rate-limited.
 - Staging sends no real address-request email.
 - Production uses the restricted `app_server` database role.
+
+The repeatable release procedure and failure recovery are in [the environment promotion runbook](runbooks/promote-environments.md).
 
 ## Primary references
 
