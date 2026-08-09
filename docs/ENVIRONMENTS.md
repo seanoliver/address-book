@@ -122,6 +122,8 @@ Required GitHub Production secret:
 PRODUCTION_DATABASE_URL
 ```
 
+This migration URL connects as the Supabase database owner and is available only to the protected deployment job. It is distinct from Vercel's runtime `DATABASE_URL`, which must connect as the restricted `app_server` role.
+
 Required production Vercel variables:
 
 - `APP_ENV=production`
@@ -139,7 +141,7 @@ Required production Vercel variables:
 
 ### Production configuration status
 
-The existing production deployment remains live with the environment snapshot it was built with. Before the next production deployment, restore these project-level Vercel variables: restricted-role `DATABASE_URL`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_FROM`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY`. Also add `PRODUCTION_DATABASE_URL` to the GitHub `Production` environment. The deployment workflow intentionally fails before deployment while that migration secret is absent.
+The existing production deployment remains live with the environment snapshot it was built with. Before the next production deployment, restore these project-level Vercel variables: restricted-role `DATABASE_URL`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_FROM`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY`. Also add an owner-role `PRODUCTION_DATABASE_URL` to the GitHub `Production` environment. The deployment workflow intentionally fails before deployment while that migration secret is absent.
 
 ## Migration policy
 
