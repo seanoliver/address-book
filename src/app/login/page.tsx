@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { SubmitButton } from "@/components/submit-button";
+import { currentRequestOrigin } from "@/lib/request-origin";
 import { createClient } from "@/lib/supabase/server";
 
 const emailSchema = z.object({ email: z.email().max(254) });
@@ -22,9 +23,10 @@ async function signInWithEmail(formData: FormData) {
 async function signInWithGoogle() {
   "use server";
   const supabase = await createClient();
+  const origin = await currentRequestOrigin();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${process.env.APP_URL}/auth/confirm` },
+    options: { redirectTo: `${origin}/auth/confirm` },
   });
   if (error || !data.url) redirect("/login?error=1");
   redirect(data.url);

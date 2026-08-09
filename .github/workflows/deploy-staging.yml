@@ -1,0 +1,30 @@
+name: Deploy staging database
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: staging-database
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate staging
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: Staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Apply committed migrations to staging
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: supabase db push --db-url "$DATABASE_URL" --include-all --yes
