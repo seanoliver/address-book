@@ -1,29 +1,35 @@
 # <Short bug title>
 
 **Date:** YYYY-MM-DD
+**Status:** Fixed / Mitigated / Deferred
 **Severity:** Critical / Important / Minor
-**Status:** Fixed in `<commit>`
+**Last verified:** `<commit>` on YYYY-MM-DD
+**Related:** Issue / PR / investigation / ADR links, or None
 
 ## Symptom
 
-What was observed, and where.
+What was observed, where, and the exact error when useful.
 
 ## Root cause
 
-The actual mechanism, not the proximate trigger.
+The actual mechanism and why the failing path was reachable, not merely the proximate trigger.
 
-## Repro steps
+## Reproduction
 
-Minimal steps or SQL/code snippet that demonstrates the bug.
+Minimal steps, state preconditions, or SQL/code that demonstrates the bug.
 
 ## Fix
 
-What changed, with file references.
+What changed, with file paths and relevant symbols.
 
 ## Verification
 
-How the fix was proven (test output, probe results).
+How the fix was proven: automated checks, probe results, and/or manual reproduction.
 
 ## Recurrence guardrail
 
-The test, lint, or convention that prevents this class of bug from returning.
+The test, invariant, defensive check, lint rule, or convention that prevents this class of bug from returning. If none was added, explain why.
+
+## Follow-ups
+
+Optional deferred work. Keep ownership and current status in the issue tracker.
