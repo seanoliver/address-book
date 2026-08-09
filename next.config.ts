@@ -1,6 +1,25 @@
 import type { NextConfig } from "next";
 
+const CANONICAL_ORIGIN = "https://sealed.page";
+
+// Keep this allow-list exact: matching Vercel hosts broadly would redirect
+// staging and deployment-specific preview URLs away from their own origins.
+const NON_CANONICAL_PRODUCTION_HOSTS = [
+  "www.sealed.page",
+  "address-book-umber-tau.vercel.app",
+] as const;
+
 const nextConfig: NextConfig = {
+  async redirects() {
+    return NON_CANONICAL_PRODUCTION_HOSTS.map((host) => ({
+      source: "/:path*",
+      has: [
+        { type: "host" as const, value: host.replaceAll(".", "\\.") },
+      ],
+      destination: `${CANONICAL_ORIGIN}/:path*`,
+      permanent: true,
+    }));
+  },
   async headers() {
     return [
       {
