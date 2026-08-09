@@ -37,7 +37,9 @@ patterns against the installed packages rather than memory.
 - **`redirect_to` is allowlisted.** `emailRedirectTo`/OAuth `redirectTo` must
   match `site_url` or `additional_redirect_urls` globs or GoTrue silently falls
   back to `site_url`. Aligned `site_url` to `http://localhost:3000` (was
-  `127.0.0.1`, mismatching `APP_URL`).
+  `127.0.0.1`, mismatching `APP_URL`). OAuth PKCE adds a stricter invariant:
+  the callback must also return to the origin where sign-in began so the
+  verifier cookie is available. See the [preview-origin bug journal](../bugs/2026-08-09-oauth-pkce-callback-crosses-preview-origin.md).
 
 ## How it works
 
