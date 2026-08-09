@@ -3,7 +3,7 @@
 **Date:** 2026-07-11
 **Status:** Current
 **Prompted by:** Feature build (Task 6: auth + login page)
-**Last verified:** `156da36` on 2026-08-09
+**Last verified:** `9d2b4ae` on 2026-08-09
 **Related:** [OAuth preview-origin bug](../bugs/2026-08-09-oauth-pkce-callback-crosses-preview-origin.md)
 
 ## Context
@@ -22,9 +22,10 @@ patterns against the installed packages rather than memory.
 - **Magic-link emails must be re-templated for the SSR flow.** The default
   GoTrue template links to `{SUPABASE_URL}/auth/v1/verify?...&redirect_to=...`,
   which either puts tokens in a URL fragment (server can't read) or requires a
-  PKCE verifier cookie. The canonical SSR flow overrides the template to
-  `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`, and the
-  app route calls `verifyOtp({ type, token_hash })` — no prior cookies needed.
+  PKCE verifier cookie. The canonical SSR flow overrides the template to append
+  `token_hash` and `type=email` to `{{ .RedirectTo }}`. The auth action supplies
+  `/auth/confirm?flow=login|signup`, and the app route calls
+  `verifyOtp({ type, token_hash })` — no prior cookies needed.
   Configured in `supabase/config.toml` (`[auth.email.template.magic_link]` and
   `.confirmation`, both pointing at `supabase/templates/magic_link.html`).
   Config changes require `supabase stop && supabase start`.

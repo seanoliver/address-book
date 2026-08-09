@@ -1,4 +1,25 @@
 import { expect, test } from "@playwright/test";
+import { fetchMagicLink, uniqueEmail } from "./helpers";
+
+test("a failed signup magic link returns to signup", async ({ page }) => {
+  const email = uniqueEmail("signup-error");
+  await page.goto("/signup");
+  await page.getByLabel("Email address").fill(email);
+  await page.getByRole("button", { name: "Send magic link" }).click();
+  await expect(
+    page.getByText("Check your email to finish creating your address book."),
+  ).toBeVisible();
+
+  const link = new URL(await fetchMagicLink(email));
+  expect(link.searchParams.get("flow")).toBe("signup");
+  link.searchParams.set("token_hash", "not-a-real-token-hash");
+  await page.goto(link.toString());
+
+  await expect(page).toHaveURL(/\/signup\?error=1$/);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Something went wrong" }),
+  ).toBeVisible();
+});
 
 test("a provider fallback code at the site root reaches auth confirmation", async ({
   page,

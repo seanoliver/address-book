@@ -2,17 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import {
+  authConfirmationUrl,
+  parseAuthFlow,
+} from "@/lib/auth-flow";
 import { currentRequestOrigin } from "@/lib/request-origin";
 import { createClient } from "@/lib/supabase/server";
 
 const emailSchema = z.object({ email: z.email().max(254) });
-const flowSchema = z.enum(["login", "signup"]);
 
-type AuthFlow = z.infer<typeof flowSchema>;
-
-function readFlow(formData: FormData): AuthFlow {
-  const parsed = flowSchema.safeParse(formData.get("flow"));
-  return parsed.success ? parsed.data : "login";
+function readFlow(formData: FormData) {
+  return parseAuthFlow(formData.get("flow"));
 }
 
 export async function sendMagicLink(formData: FormData) {
@@ -23,7 +23,9 @@ export async function sendMagicLink(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
-    options: { emailRedirectTo: `${process.env.APP_URL}/auth/confirm` },
+    options: {
+      emailRedirectTo: authConfirmationUrl(process.env.APP_URL!, flow),
+    },
   });
 
   // Generic failure state — never reveal whether an account already exists.
@@ -37,7 +39,7 @@ export async function continueWithGoogle(formData: FormData) {
   const origin = await currentRequestOrigin();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${origin}/auth/confirm` },
+    options: { redirectTo: authConfirmationUrl(origin, flow) },
   });
   if (error || !data.url) redirect(`/${flow}?error=1`);
   redirect(data.url);
