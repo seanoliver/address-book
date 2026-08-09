@@ -6,8 +6,8 @@ Sealed runs in three isolated environments. `APP_ENV` is the application-level e
 
 | Concern | Local | Staging | Production |
 |---|---|---|---|
-| Application | `http://localhost:3000` | `address-book-staging` Vercel project, including every PR preview | `address-book` Vercel project |
-| Supabase | CLI stack | `address-book-staging` (`fmjbjkcuyqopoubbylme`) | `address-book` (`ivwrvilpjhqhmlzwgyot`) |
+| Application | `http://localhost:3000` | `sealed-staging` Vercel project, including every PR preview | `address-book` Vercel project |
+| Supabase | CLI stack | `sealed-staging` (`fmjbjkcuyqopoubbylme`) | `address-book` (`ivwrvilpjhqhmlzwgyot`) |
 | Database data | Disposable local fixtures | Synthetic test data only | Real owner/contact data |
 | Email | Mailpit and dry-run logs | Dry-run logs until a restricted staging sender is configured | Resend production sender |
 | Turnstile | Cloudflare test keys | Cloudflare test keys initially | Real production widget |
@@ -20,7 +20,7 @@ The two hosted Supabase projects must never share credentials, users, or databas
 `APP_URL` is the **canonical URL** used in outgoing email and public address-book links:
 
 - Local: `http://localhost:3000`
-- Staging: `https://address-book-staging.vercel.app`
+- Staging: `https://sealed-staging.vercel.app`
 - Production: the production domain
 
 OAuth callbacks initiated on a Vercel preview should use that request's origin so the browser returns to the same preview. Supabase staging must allow both the canonical staging callback and the Vercel preview-domain wildcard. Production Supabase must allow only production callbacks.
@@ -73,8 +73,8 @@ Export the two credential variables before restarting Supabase. An ignored `.env
 
 ### Provisioned infrastructure
 
-- Supabase project: `address-book-staging` (`fmjbjkcuyqopoubbylme`), `us-east-1`
-- Vercel project: `address-book-staging` (`prj_U3UvwU863EZVmb9up3Z0M28GQWQQ`)
+- Supabase project: `sealed-staging` (`fmjbjkcuyqopoubbylme`), `us-east-1`
+- Vercel project: `sealed-staging` (`prj_U3UvwU863EZVmb9up3Z0M28GQWQQ`)
 - GitHub environment: `Staging`
 - Restricted database runtime role: `app_server`
 - Migrations `00000000000001` through `00000000000003` applied
@@ -85,8 +85,8 @@ The staging Vercel project's Production and Preview variables both point to stag
 
 Staging Supabase is configured with:
 
-- Site URL `https://address-book-staging.vercel.app`
-- Redirect allow-list entries for the stable staging URL and this project's Vercel preview wildcard
+- Site URL `https://sealed-staging.vercel.app`
+- Redirect allow-list entries for the new and legacy stable staging URLs plus this project's Vercel preview wildcard
 - A dedicated Google OAuth client owned by the Sealed Google Cloud project
 - Only an empty, ungranted `api` schema exposed through the Data API; application data is not exposed
 
