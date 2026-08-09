@@ -64,10 +64,10 @@ enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
-skip_nonce_check = true
+skip_nonce_check = false
 ```
 
-Export the two credential variables before restarting Supabase. Never commit them.
+Export the two credential variables before restarting Supabase. An ignored `.envrc` with `direnv allow` is supported for local development. Never commit them. Keep `skip_nonce_check = false`; the current Supabase Auth flow performs the nonce check.
 
 ## Staging
 
@@ -81,16 +81,16 @@ Export the two credential variables before restarting Supabase. Never commit the
 
 The staging Vercel project's Production and Preview variables both point to staging Supabase. It is the only Vercel project connected to GitHub, so PR preview links cannot accidentally use production infrastructure.
 
-### Remaining hosted configuration
+### Hosted configuration
 
-In staging Supabase, configure:
+Staging Supabase is configured with:
 
-- Site URL: `https://address-book-staging.vercel.app`
-- Redirect URL: `https://address-book-staging.vercel.app/auth/confirm`
-- A wildcard covering this project's Vercel preview callback URLs
-- The magic-link template from `supabase/templates/magic_link.html`
-- Google provider credentials from a dedicated staging Google OAuth client
-- No exposed Data API schemas, because the browser uses Supabase for Auth only
+- Site URL `https://address-book-staging.vercel.app`
+- Redirect allow-list entries for the stable staging URL and this project's Vercel preview wildcard
+- A dedicated Google OAuth client owned by the Sealed Google Cloud project
+- Only an empty, ungranted `api` schema exposed through the Data API; application data is not exposed
+
+The custom magic-link template in `supabase/templates/magic_link.html` remains local-only while staging uses Supabase's free-tier default email provider: hosted template modification requires either custom SMTP or a paid Supabase plan. The default provider is intentionally retained until staging-auth recipient policy is decided.
 
 The staging Google client callback is:
 
@@ -141,7 +141,7 @@ Required production Vercel variables:
 
 ### Production configuration status
 
-The existing production deployment remains live with the environment snapshot it was built with. Before the next production deployment, restore these project-level Vercel variables: restricted-role `DATABASE_URL`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_FROM`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, and `TURNSTILE_SECRET_KEY`. Also add an owner-role `PRODUCTION_DATABASE_URL` to the GitHub `Production` environment. The deployment workflow intentionally fails before deployment while that migration secret is absent.
+Production project variables and the protected GitHub migration credential are configured. The existing deployment remains live with its original environment snapshot; the next approved deployment will use the rotated `app_server_v2` runtime credential. The original `app_server` login must remain active until that deployment is verified, after which its old login credential can be retired. Production Google OAuth now uses the dedicated client owned by the Sealed Google Cloud project.
 
 ## Migration policy
 
