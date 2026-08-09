@@ -46,7 +46,7 @@ Promote one verified commit from local/PR testing to shared staging and then to 
    test -n "$STAGING_SHA"
    ```
 
-6. Confirm the stable staging Vercel deployment reports the same commit SHA, then smoke-test `https://address-book-staging.vercel.app`: login, callback, onboarding, an authenticated owner action, and any changed recipient flow. Application-generated address-request email remains dry-run in staging.
+6. Confirm the stable staging Vercel deployment reports the same commit SHA, then smoke-test `https://sealed-staging.vercel.app`: login, callback, onboarding, an authenticated owner action, and any changed recipient flow. Application-generated address-request email remains dry-run in staging.
 7. Dispatch the protected production workflow with `STAGING_SHA` or a release tag resolving to that exact commit:
 
    ```bash
@@ -63,7 +63,7 @@ A promotion is complete only when all applicable signals pass:
 
 ```bash
 gh run list --branch main --limit 10
-curl -fsS -o /dev/null -w '%{http_code}\n' https://address-book-staging.vercel.app/login
+curl -fsS -o /dev/null -w '%{http_code}\n' https://sealed-staging.vercel.app/login
 ```
 
 For production, also verify:

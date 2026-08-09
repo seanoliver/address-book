@@ -39,6 +39,10 @@ const nonRedirectingHosts = [
   { name: "local development", host: "localhost:3000" },
   {
     name: "the stable staging host",
+    host: "sealed-staging.vercel.app",
+  },
+  {
+    name: "the legacy stable staging host",
     host: "address-book-staging.vercel.app",
   },
   {
