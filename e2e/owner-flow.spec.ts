@@ -194,7 +194,7 @@ test("changing the slug requires acknowledging the link-break warning", async ()
   // The new link is saved (warning gone against the new baseline).
   await expect(warning).toBeHidden();
   await expect(
-    page.getByRole("link", { name: `http://localhost:3000/b/${slug}-moved` }),
+    page.getByRole("link", { name: `${process.env.APP_URL}/b/${slug}-moved` }),
   ).toBeVisible();
 
   const oldResponse = await page.request.get(`/b/${slug}`);

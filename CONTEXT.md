@@ -1,8 +1,12 @@
-# Address Book
+# Sealed
 
 The shared language for an owner collecting and maintaining private contact information through an address book.
 
 ## Language
+
+**Sealed**:
+The product and open-source project. Sealed is the brand; it contains an owner’s address book but is not itself synonymous with that collection.
+_Avoid_: Address Book as the product name
 
 **Address book**:
 The owner’s single private collection of contacts. It has no independent title or name; user-facing attribution comes from the owner name.

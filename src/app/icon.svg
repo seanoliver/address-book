@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>Sealed envelope mark</title>
+  <rect width="64" height="64" rx="14" fill="#295744"/>
+  <rect x="10" y="15" width="44" height="34" rx="6" fill="#faf7f1" stroke="#faf7f1" stroke-width="3"/>
+  <path d="m13 20 19 14 19-14" stroke="#295744" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="34" r="6" fill="#b7503c"/>
+  <path d="m28.5 38.5-1.5 8 5-2.4 5 2.4-1.5-8" fill="#b7503c"/>
+</svg>

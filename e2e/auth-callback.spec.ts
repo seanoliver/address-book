@@ -11,9 +11,11 @@ test("a failed signup magic link returns to signup", async ({ page }) => {
   ).toBeVisible();
 
   const link = new URL(await fetchMagicLink(email));
+  expect(link.origin).toBe(new URL(process.env.APP_URL!).origin);
   expect(link.searchParams.get("flow")).toBe("signup");
   link.searchParams.set("token_hash", "not-a-real-token-hash");
-  await page.goto(link.toString());
+  const pageOrigin = new URL(page.url()).origin;
+  await page.goto(`${pageOrigin}${link.pathname}${link.search}`);
 
   await expect(page).toHaveURL(/\/signup\?error=1$/);
   await expect(

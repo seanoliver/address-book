@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Mail } from "lucide-react";
 import {
   continueWithGoogle,
   sendMagicLink,
 } from "@/app/auth/actions";
+import { SealedMark, SealedWordmark } from "@/components/sealed-mark";
 import { SubmitButton } from "@/components/submit-button";
 
 type AuthPageProps = {
@@ -18,7 +18,7 @@ const COPY = {
     message:
       "Your contacts are waiting right where you left them. We’ll email you the key.",
     formTitle: "Open your address book",
-    formMessage: "Enter the email you use for Address Book.",
+    formMessage: "Enter the email you use for Sealed.",
     sentMessage: "Check your email for a sign-in link.",
     alternatePrompt: "New here?",
     alternateLabel: "Create an address book",
@@ -44,12 +44,8 @@ export function AuthPage({ flow, sent, error }: AuthPageProps) {
   return (
     <main className="flex flex-1 items-center px-5 py-12 sm:px-8">
       <div className="mx-auto w-full max-w-3xl">
-        <Link
-          href="/"
-          className="mb-8 flex items-center gap-2 font-serif text-base text-foreground"
-        >
-          <Mail className="size-4 text-primary" aria-hidden="true" />
-          Address Book
+        <Link href="/" className="mb-8 flex w-fit">
+          <SealedWordmark />
         </Link>
 
         <div className="overflow-hidden rounded-3xl border bg-card shadow-xl shadow-foreground/5 md:grid md:grid-cols-[0.9fr_1.1fr]">
@@ -60,7 +56,7 @@ export function AuthPage({ flow, sent, error }: AuthPageProps) {
             <p className="mt-4 leading-relaxed text-pretty text-muted-foreground">
               {text.message}
             </p>
-            <Mail className="mt-12 size-5 text-primary" aria-hidden="true" />
+            <SealedMark className="mt-12 size-5 text-primary" />
           </section>
 
           <section aria-label={text.formTitle} className="p-8 sm:p-10">
