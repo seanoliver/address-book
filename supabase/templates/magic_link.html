@@ -2,7 +2,7 @@
 
 <p>Follow this link to sign in:</p>
 <p>
-  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email"
+  <a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email"
     >Sign in</a
   >
 </p>

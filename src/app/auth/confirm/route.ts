@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { parseAuthFlow } from "@/lib/auth-flow";
 import { createClient } from "@/lib/supabase/server";
 
 const otpTypeSchema = z.enum([
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = otpTypeSchema.safeParse(searchParams.get("type"));
   const code = searchParams.get("code");
+  const flow = parseAuthFlow(searchParams.get("flow"));
 
   const supabase = await createClient();
 
@@ -40,5 +42,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=1", request.url));
+  return NextResponse.redirect(new URL(`/${flow}?error=1`, request.url));
 }

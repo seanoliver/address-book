@@ -17,7 +17,7 @@ export function uniqueSlug(prefix: string): string {
  * Poll Mailpit's REST API for the newest message to `email` and pull the
  * /auth/confirm magic link out of its text body.
  */
-async function fetchMagicLink(email: string): Promise<string> {
+export async function fetchMagicLink(email: string): Promise<string> {
   const query = encodeURIComponent(`to:${email}`);
   let link: string | null = null;
   await expect
