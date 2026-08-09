@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   return (
@@ -19,10 +21,26 @@ export default function Home() {
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted-foreground">
             Share one private link with friends and family. They add their own details, and your address book stays ready for cards and invitations.
           </p>
-          <Link href="/login" className="mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground transition-colors hover:bg-primary/80">
-            Create your address book
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href="/signup"
+              className={cn(
+                buttonVariants({ variant: "default", size: "lg" }),
+                "h-13 rounded-xl border-primary px-7 text-base font-semibold shadow-md shadow-primary/15 hover:-translate-y-0.5 hover:bg-primary/85 hover:shadow-lg hover:shadow-primary/20",
+              )}
+            >
+              Create your address book
+            </Link>
+            <Link
+              href="/login"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg" }),
+                "h-13 rounded-xl px-6 text-base shadow-sm",
+              )}
+            >
+              Log in
+            </Link>
+          </div>
         </div>
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Lock className="size-4" aria-hidden="true" />

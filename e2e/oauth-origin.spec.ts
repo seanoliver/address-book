@@ -12,7 +12,7 @@ test("OAuth returns to the origin where sign-in started", async ({ page }) => {
     );
   });
 
-  await page.getByRole("button", { name: "Sign in with Google" }).click();
+  await page.getByRole("button", { name: "Continue with Google" }).click();
   const request = await authorizeRequest;
   const redirectTo = new URL(request.url()).searchParams.get("redirect_to");
 
