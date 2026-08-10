@@ -14,7 +14,7 @@ Promote one verified commit from local/PR testing to shared staging and then to 
 - Use the environment assignments in `docs/ENVIRONMENTS.md`; never substitute one environment's Supabase project or data into another.
 - PR CI and the staging Vercel preview must be green.
 - GitHub `Staging` contains `STAGING_DATABASE_URL`; GitHub `Production` contains `PRODUCTION_DATABASE_URL` and requires approval.
-- Both migration URLs must use Supabase's IPv4 transaction pooler on port 6543 with `sslmode=require`. GitHub-hosted runners cannot reach the projects' IPv6-only direct database endpoints.
+- Both migration URLs must use Supabase's IPv4 **session pooler** on port 5432 with `sslmode=require`. GitHub-hosted runners cannot reach the projects' IPv6-only direct database endpoints, and the transaction pooler on port 6543 is incompatible with the migration CLI's prepared statements.
 - Vercel Production has the complete variable set listed in `docs/ENVIRONMENTS.md` and remains disconnected from Git.
 - Migrations are backward-compatible with the currently deployed application. Production has no automatic schema rollback.
 - Do not run `supabase config push` from the localhost-oriented `supabase/config.toml`; hosted Auth URL/provider configuration is managed separately.
@@ -77,7 +77,11 @@ For production, also verify:
 
 ### Staging migration reports an IPv6 network error
 
-The secret contains a direct Supabase URL. Rotate the staging database-owner password, construct the project's transaction-pooler URL (`postgres.<project-ref>` on port 6543), verify it connects as `postgres`, replace `STAGING_DATABASE_URL`, and rerun only the failed workflow. Never print the URL or password in logs.
+The secret contains a direct Supabase URL. Rotate the staging database-owner password, construct the project's session-pooler URL (`postgres.<project-ref>` on port 5432), verify it connects as `postgres`, replace `STAGING_DATABASE_URL`, and rerun only the failed workflow. Never print the URL or password in logs.
+
+### Migration reports `prepared statement "lrupsc_1_0" already exists`
+
+The migration used Supabase's transaction pooler on port 6543. That pooler can assign a backend carrying another CLI client's named prepared statement, so retrying does not reliably recover. Use the IPv4 session-pooler endpoint on port 5432 instead. The deployment workflows normalize legacy 6543 pooler secrets to 5432 and reject direct or otherwise unexpected endpoints before invoking the CLI.
 
 ### Migration fails on SQL
 
