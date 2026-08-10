@@ -102,7 +102,7 @@ Staging currently uses email dry-run and Turnstile test keys. This is deliberate
 
 ### Staging deployment
 
-Git-connected Vercel deployments handle `main` and pull requests. After CI succeeds on `main`, `.github/workflows/deploy-staging.yml` applies committed migrations to staging. `STAGING_DATABASE_URL` must be an owner-role Supabase **transaction-pooler** URL on port 6543; GitHub-hosted runners cannot reach the project's IPv6-only direct database endpoint. Database-changing PR previews therefore run against the last merged staging schema; keep migrations backward-compatible.
+Git-connected Vercel deployments handle `main` and pull requests. After CI succeeds on `main`, `.github/workflows/deploy-staging.yml` applies committed migrations to staging. `STAGING_DATABASE_URL` must be an owner-role Supabase **session-pooler** URL on port 5432; GitHub-hosted runners cannot reach the project's IPv6-only direct database endpoint, while transaction pooling on port 6543 is incompatible with the CLI's prepared statements. Database-changing PR previews therefore run against the last merged staging schema; keep migrations backward-compatible.
 
 ## Production
 
@@ -122,7 +122,7 @@ Required GitHub Production secret:
 PRODUCTION_DATABASE_URL
 ```
 
-This migration URL connects as the Supabase database owner and is available only to the protected deployment job. It must use the IPv4 transaction pooler on port 6543 for GitHub-hosted runners. It is distinct from Vercel's runtime `DATABASE_URL`, which must connect as the restricted `app_server` role.
+This migration URL connects as the Supabase database owner and is available only to the protected deployment job. It must use the IPv4 session pooler on port 5432 for GitHub-hosted runners; the transaction pooler on port 6543 can retain the CLI's prepared statements across clients and fail retries with `SQLSTATE 42P05`. It is distinct from Vercel's runtime `DATABASE_URL`, which must connect as the restricted `app_server` role.
 
 Required production Vercel variables:
 
