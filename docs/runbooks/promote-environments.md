@@ -53,7 +53,7 @@ Promote one verified commit from local/PR testing to shared staging and then to 
    gh workflow run deploy-production.yml -f ref="$STAGING_SHA"
    ```
 
-8. Approve the GitHub Production environment deployment after checking the ref and staging evidence. The workflow applies migrations first and then asks Vercel to build and deploy the same checkout.
+8. Approve the GitHub Production environment deployment after checking the ref and staging evidence. The workflow applies migrations first and then uploads that checkout for a remote Vercel production build. The build must remain remote: sensitive Vercel variables are intentionally unavailable to `vercel pull` and therefore cannot support a local/prebuilt CI build.
 9. Watch the workflow to completion and run non-destructive production smoke checks: homepage, login initiation/callback, dashboard access, and public form rendering. Do not create or inspect real contact data merely for a smoke test.
 10. After the first deployment using a rotated runtime database role, confirm the active deployment connects successfully before disabling the superseded login credential.
 
@@ -89,7 +89,7 @@ Do not force a deployment or edit migration history. Diagnose against a disposab
 
 ### Production migration succeeds but deployment fails
 
-Leave the previous production deployment serving traffic. Because migrations must be expand/migrate/contract compatible, repair the build and rerun the same ref or a forward-fix ref; do not attempt an automatic database rollback.
+Leave the previous production deployment serving traffic. Because migrations must be expand/migrate/contract compatible, repair the build and rerun the same ref or a forward-fix ref; do not attempt an automatic database rollback. If a CI build reports an invalid empty environment value after `vercel pull`, do not downgrade secret types: sensitive values are write-only outside Vercel. Keep the workflow's build remote so Vercel can inject them server-side.
 
 ### A Vercel variable disappears while changing targets
 
